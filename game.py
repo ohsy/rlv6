@@ -43,8 +43,10 @@ class Game:
     def run(self, mode, env, agent, envUtil):
         #   analyzer = Analyzer_cartpoleV1_dqn(self.config) if env.unwrapped.spec.id == "CartPole-v1" and agent.__class__.__name__ == "DQN" \
         #         else Analyzer_pendulumV1_actorcritic(self.config)
-        analyzer = Analyzer_CartPole_v1(self.config) if env.unwrapped.spec.id == "CartPole-v1" \
-                else Analyzer_Pendulum_v1(self.config)
+        if env.unwrapped.spec.id == "CartPole-v1": 
+            analyzer = Analyzer_CartPole_v1(self.config) 
+        elif env.unwrapped.spec.id == "Pendulum-v1": 
+            analyzer = Analyzer_Pendulum_v1(self.config)
 
         nEpisodes = self.nEpisodes_toTrain if mode == Mode.train else self.nEpisodes_toTest
         for episodeCnt in range(1, nEpisodes+1):  # for episodeCnt in tqdm(range(1, nEpisodes+1)):
@@ -148,7 +150,7 @@ class Analyzer:
         self.avgReward = self.sumReward / len(self.rewards)  # NOTE: sumReward != return as gamma is not applied
         msg = f"({self.status}) episode {episodeCnt}: {tm:.3f}sec" 
         msg += f", avg_loss0: {avg_loss0:.3f}" 
-        msg += ("" if len(self.losss1) == 0 else f", avg_loss1: {avg_loss1:.3f}") 
+        msg += f", avg_loss1: {avg_loss1:.3f}" if len(self.losss1) > 0 else ""
         if self.envName == EnvName.CartPole_v1.name:
             msg += f", sumReward: {self.sumReward:.3f}, sumReward_max: {self.sumReward_max:.3f}" 
         elif self.envName == EnvName.Pendulum_v1.name:
