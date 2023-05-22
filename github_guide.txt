@@ -1,5 +1,5 @@
 
-Initialize a new repository
+================ Initialize a new repository
 cf. https://docs.github.com/en/migrations/importing-source-code/using-the-command-line-to-import-source-code/adding-locally-hosted-code-to-github
 
 $ cd rl
@@ -24,4 +24,25 @@ Fine grained token (the longer one) is not working.
 Again I generated a classic token (the shorter one) and it's working.
 For username: enter "ohsy". 
 For password: enter the token.
+
+================ clone, change, commit, and push
+
+In a different machine: 
+
+$ cd ~/works/tf
+$ git clone https://github.com/ohsy/rlv5.git
+
+Directory rlv5 is made.
+
+$ cd rlv5
+
+Change files.
+
+$ git add *.py
+$ git add *.json
+$ git commit -m "some messgae"
+$ git push
+
+Commit changes local clone repo. 
+Push changes remote repo in Github.
 
