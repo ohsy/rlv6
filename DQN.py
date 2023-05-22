@@ -44,7 +44,7 @@ class DQN:
         self.npIntDtype = np.dtype(config["intdtype"])
         self.actionDim = actionDim
 
-        self.savePath = config["SavePath"] 
+        self.savePath = f"{config['SavePath']}/{self.__class__.__name__}" 
         self.writer = tf.summary.create_file_writer(config["SummaryWriterPath"])
         self.isRewardNorm = config["RewardNormalization"]
         self.isPER = config["PER"]
@@ -72,20 +72,15 @@ class DQN:
         self.tau = config["SoftUpdateRate_tau"] 
         self.gamma = config["RewardDiscountRate_gamma"] 
         self.lr = config["DQN_learningRate"]
-        self.epsilonInit = config["EpsilonInit"]
-        #   self.epsilonDecay = config["EpsilonDecay"]  # so that epsilonDecay**(repalyBuffer.capacity/2) ~ epsilonMin; ex. 0.999**4600 ~ 0.01
-        self.epsilonMin = config["EpsilonMin"]
-        #   self.epsilonDecay = (self.epsilonInit - self.epsilonMin) / self.epsilonMaxActCount
-        self.epsilonLambda = config["EpsilonLambda"]
-        self.epsilon = self.epsilonInit
-        self.epsilonDecayCnt = 0
+
+        self.explorer = Explorer(mode, config, self.savePath) 
 
         self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm layer in XXX_units list like [64,'bn',64]
         hiddenUnits = config["DQN_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
 
         if mode == "continued_train":
-            self.dqn = load_model(f"{self.savePath}/{self.__class__.__name__}/dqn/")
-            self.target_dqn = load_model(f"{self.savePath}/{self.__class__.__name__}/target_dqn/")
+            self.dqn = load_model(f"{self.savePath}/dqn/")
+            self.target_dqn = load_model(f"{self.savePath}/target_dqn/")
             self.optimizer = Adam(self.lr)
             self.dqn.summary(print_fn=self.logger.info)
         elif mode == "train":
@@ -93,7 +88,7 @@ class DQN:
             self.target_dqn = self.build_dqn(observDim, hiddenUnits, actionDim, self.tfDtype, trainable=False)
             self.optimizer = Adam(self.lr)
         elif mode == "test": 
-            self.dqn = load_model(f"{self.savePath}/{self.__class__.__name__}/dqn/")
+            self.dqn = load_model(f"{self.savePath}/dqn/")
             self.dqn.summary(print_fn=self.logger.info)
 
 
@@ -194,12 +189,8 @@ class DQN:
         return:
             action: one-hot vector of the maximum-Q-node in output layer; shape=(actionDim)
         """
-        self.epsilon = self.epsilonMin + (self.epsilonInit - self.epsilonMin) * math.exp(-self.epsilonLambda * self.epsilonDecayCnt)
-        self.epsilonDecayCnt += 1
-
-        #   if (self.mode == "train") and self.isToExplore(): 
-        if (self.mode == "train") and random.random() < self.epsilon:
-            actionToEnv = actionCoder.random_vec()
+        if self.explorer.isReadyToExplore():
+            actionToEnv = actionCoder.random_vec()  # get a random actionToEnv
             action = actionCoder.encode(actionToEnv)
             Q_max = 0  # dummy
         else:
@@ -213,15 +204,6 @@ class DQN:
         #   return action, Q_max  # Q_max for monitoring
         return action
     
-
-    """
-    def isToExplore(self):
-        #   self.epsilon = max(self.epsilon * self.epsilonDecay, self.epsilonMin) 
-        #   b = self.replayBuffer.memoryCnt < self.memoryRatioToFillWithRandomAction or random.random() < self.epsilon
-        b = random.random() < self.epsilon
-        return b
-    """
-
     def isReadyToTrain(self):
         b1 = self.mode == "train"
         b2 = self.replayBuffer.memoryCnt > self.memoryCnt_toStartTrain 
@@ -230,10 +212,11 @@ class DQN:
         return b1 and b2 and b3  #   and b4
     
     def save(self, msg=""):
-        self.dqn.save(f"{self.savePath}/{self.__class__.__name__}/dqn/")
-        self.target_dqn.save(f"{self.savePath}/{self.__class__.__name__}/target_dqn/")
-        self.replayBuffer.save(f"{self.savePath}/{self.__class__.__name__}/replayBuffer.json")
+        self.dqn.save(f"{self.savePath}/dqn/")
+        self.target_dqn.save(f"{self.savePath}/target_dqn/")
+        self.replayBuffer.save(f"{self.savePath}/replayBuffer.json")
         self.logger.info(msg)
+        self.explorer.save()
 
     def summary(self):
         self.dqn.summary(print_fn=self.logger.info)  # to print in logger file
@@ -241,4 +224,44 @@ class DQN:
     def summaryWrite(self, key, value, step):
         with self.writer.as_default():
             tf.summary.scalar(key, value, step=step)
+
+
+class Explorer:
+    def __init__(self, mode, config, savePath):
+        self.mode = mode
+        self.savePath = savePath
+        self.filePath = f"{self.savePath}/epsilonDecay.txt"
+        self.epsilonInit = config["EpsilonInit"]
+        self.epsilonMin = config["EpsilonMin"]
+        self.epsilonLambda = config["EpsilonLambda"]
+        self.epsilon = self.epsilonInit
+        self.epsilonDecayCnt = 0
+            #   self.epsilonDecay = (self.epsilonInit - self.epsilonMin) / self.epsilonMaxActCount
+        self.epsilonDecay = config["EpsilonDecay"]  
+            # so that epsilonDecay**(repalyBuffer.capacity/2) ~ epsilonMin; ex. 0.999**4600 ~ 0.01
+        if mode == "continued_train":
+            self.load(self.filePath)
+    
+    def isReadyToExplore(self):
+        self.decay_epsilon()
+        b = (self.mode in ["train", "continued_train"]) and random.random() < self.epsilon
+        return b
+
+    def decay_epsilon(self):
+            #   self.epsilon = max(self.epsilon * self.epsilonDecay, self.epsilonMin) 
+        self.epsilon = self.epsilonMin \
+                + (self.epsilonInit - self.epsilonMin) * math.exp(-self.epsilonLambda * self.epsilonDecayCnt)
+        self.epsilonDecayCnt += 1
+
+    def save(self):
+        with open(self.filePath, "wt") as f:
+            f.write(f"epsilon={self.epsilon}\n")
+            f.write(f"epsilonDecayCnt={self.epsilonDecayCnt}\n")
+
+    def load(self):
+        with open(self.filePath, "rt") as f:
+            lst = f.readline().split('=')
+            self.epsilon = float(lst[1])
+            lst = f.readline().split('=')
+            self.epsilonDecayCnt = int(lst[1])
 

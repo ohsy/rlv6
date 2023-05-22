@@ -149,7 +149,7 @@ class Analyzer:
         if self.envName == EnvName.CartPole_v1.name:
             msg = f"({self.status}) episode {episodeCnt}: {tm:.3f}sec, sumReward: {self.sumReward:.3f}, sumReward_max: {self.sumReward_max:.3f}" \
                 + f", avg_loss0: {avg_loss0:.3f}" + ("" if len(self.losss1) == 0 else f", avg_loss1: {avg_loss1:.3f}") \
-                + f", epsilon: {agent.epsilon:.3f}"
+                + f", epsilon: {agent.explorer.epsilon:.3f}"
         elif self.envName == EnvName.Pendulum_v1.name:
             msg = f"({self.status}) episode {episodeCnt}: {tm:.3f}sec, avgReward: {self.avgReward:.3f}" \
                 + f", avg_loss0: {avg_loss0:.3f}" + ("" if len(self.losss1) == 0 else f", avg_loss1: {avg_loss1:.3f}") 
