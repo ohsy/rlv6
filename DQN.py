@@ -31,8 +31,9 @@ from tensorflow.keras.layers import Input, Dense, BatchNormalization
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
-
 from ReplayBuffer import ReplayBuffer, PERBuffer
+from Explorer import Explorer_epsilonDecay as Explorer
+
 
 class DQN:
     def __init__(self, mode, config, logger, observDim, actionDim):
@@ -78,19 +79,19 @@ class DQN:
         self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm layer in XXX_units list like [64,'bn',64]
         hiddenUnits = config["DQN_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
 
-        if mode == "continued_train":
-            self.dqn = load_model(f"{self.savePath}/dqn/")
-            self.target_dqn = load_model(f"{self.savePath}/target_dqn/")
-            self.optimizer = Adam(self.lr)
-            self.dqn.summary(print_fn=self.logger.info)
-        elif mode == "train":
+        if mode == "train":
             self.dqn = self.build_dqn(observDim, hiddenUnits, actionDim, self.tfDtype)
             self.target_dqn = self.build_dqn(observDim, hiddenUnits, actionDim, self.tfDtype, trainable=False)
             self.optimizer = Adam(self.lr)
         elif mode == "test": 
             self.dqn = load_model(f"{self.savePath}/dqn/")
             self.dqn.summary(print_fn=self.logger.info)
-
+        elif mode == "continued_train":
+            self.dqn = load_model(f"{self.savePath}/dqn/")
+            self.target_dqn = load_model(f"{self.savePath}/target_dqn/")
+            self.optimizer = Adam(self.lr)
+            self.dqn.summary(print_fn=self.logger.info)
+            self.explorer.load()
 
     def build_dqn(self, observDim, hiddenUnits, actionDim, dtype, trainable=True): 
         observ = Input(shape=(observDim,), dtype=dtype, name="inputs")
@@ -131,32 +132,32 @@ class DQN:
             reward: shape=(batchSz,1) 
             done: shape=(batchSz,1) 
         """
-            #   print(f"in update_dqn:")
-            #   print(f"reward={reward}")
-            #   print(f"done={done}")
+        self.logger.debug(f"in update_dqn:")
+        self.logger.debug(f"reward={reward}")
+        self.logger.debug(f"done={done}")
         with tf.GradientTape() as tape:
             target_Q = self.target_dqn(next_observ)                     # shape=(batchSz, actionDim)
-                #   print(f"next_observ={next_observ}")
-                #   print(f"target_Q={target_Q}")
+            self.logger.debug(f"next_observ={next_observ}")
+            self.logger.debug(f"target_Q={target_Q}")
             target_Q_max = tf.reduce_max(target_Q, axis=1, keepdims=True)          # max among actionDim Qs; shape=(batchSz,1)
-                #   print(f"target_Q_max={target_Q_max}")
-                #   print(f"reward={reward}")
-                #   print(f"done={done}")
+            self.logger.debug(f"target_Q_max={target_Q_max}")
+            self.logger.debug(f"reward={reward}")
+            self.logger.debug(f"done={done}")
             y = reward + (1.0 - done) * self.gamma * target_Q_max       # shape=(batchSz,1)
-                #   print(f"y={y}")
+            self.logger.debug(f"y={y}")
 
             Q = self.dqn(observ)                                        # shape=(batchSz,actionDim)
-                #   print(f"Q={Q}")
-                #   print(f"action={action}")
+            self.logger.debug(f"Q={Q}")
+            self.logger.debug(f"action={action}")
             action_th_Q = tf.reduce_sum(Q * action, axis=1, keepdims=True)      # action as mask; shape=(batchSz,1)
-                #   print(f"action-th_Q={action_th_Q}", flush=True)
+            self.logger.debug(f"action-th_Q={action_th_Q}", flush=True)
             td_error = tf.square(y - action_th_Q)                       # shape=(batchSz,1)
-                #   print(f"td_error={td_error}")
+            self.logger.debug(f"td_error={td_error}")
             if self.isPER:
                 loss = tf.reduce_mean(importance_weights * td_error)    # shape=()
             else:
                 loss = tf.reduce_mean(td_error)                         # shape=()
-                    #   print(f"loss={loss}")
+                self.logger.debug(f"loss={loss}")
         grads = tape.gradient(loss, self.dqn.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.dqn.trainable_variables))
         return loss, td_error
@@ -215,8 +216,8 @@ class DQN:
         self.dqn.save(f"{self.savePath}/dqn/")
         self.target_dqn.save(f"{self.savePath}/target_dqn/")
         self.replayBuffer.save(f"{self.savePath}/replayBuffer.json")
-        self.logger.info(msg)
         self.explorer.save()
+        self.logger.info(msg)
 
     def summary(self):
         self.dqn.summary(print_fn=self.logger.info)  # to print in logger file
@@ -224,44 +225,4 @@ class DQN:
     def summaryWrite(self, key, value, step):
         with self.writer.as_default():
             tf.summary.scalar(key, value, step=step)
-
-
-class Explorer:
-    def __init__(self, mode, config, savePath):
-        self.mode = mode
-        self.savePath = savePath
-        self.filePath = f"{self.savePath}/epsilonDecay.txt"
-        self.epsilonInit = config["EpsilonInit"]
-        self.epsilonMin = config["EpsilonMin"]
-        self.epsilonLambda = config["EpsilonLambda"]
-        self.epsilon = self.epsilonInit
-        self.epsilonDecayCnt = 0
-            #   self.epsilonDecay = (self.epsilonInit - self.epsilonMin) / self.epsilonMaxActCount
-        self.epsilonDecay = config["EpsilonDecay"]  
-            # so that epsilonDecay**(repalyBuffer.capacity/2) ~ epsilonMin; ex. 0.999**4600 ~ 0.01
-        if mode == "continued_train":
-            self.load(self.filePath)
-    
-    def isReadyToExplore(self):
-        self.decay_epsilon()
-        b = (self.mode in ["train", "continued_train"]) and random.random() < self.epsilon
-        return b
-
-    def decay_epsilon(self):
-            #   self.epsilon = max(self.epsilon * self.epsilonDecay, self.epsilonMin) 
-        self.epsilon = self.epsilonMin \
-                + (self.epsilonInit - self.epsilonMin) * math.exp(-self.epsilonLambda * self.epsilonDecayCnt)
-        self.epsilonDecayCnt += 1
-
-    def save(self):
-        with open(self.filePath, "wt") as f:
-            f.write(f"epsilon={self.epsilon}\n")
-            f.write(f"epsilonDecayCnt={self.epsilonDecayCnt}\n")
-
-    def load(self):
-        with open(self.filePath, "rt") as f:
-            lst = f.readline().split('=')
-            self.epsilon = float(lst[1])
-            lst = f.readline().split('=')
-            self.epsilonDecayCnt = int(lst[1])
 

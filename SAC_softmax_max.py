@@ -18,6 +18,8 @@ from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
 from ReplayBuffer import ReplayBuffer, PERBuffer
+from Explorer import Explorer_epsilonDecay as Explorer
+
 
 class SAC_softmax_max:
     def __init__(self, mode, config, logger, observDim, actionDim):
@@ -32,6 +34,7 @@ class SAC_softmax_max:
         self.isTargetActor = config["TargetActor"]
         self.isCritic2 = config["Critic2"]
         self.savePath = config["SavePath"] 
+        self.savePath = f"{config['SavePath']}/{self.__class__.__name__}"
         self.writer = tf.summary.create_file_writer(config["SummaryWriterPath"])
         self.isRewardNorm = config["RewardNormalization"]
         self.isPER = config["PER"]
@@ -63,13 +66,8 @@ class SAC_softmax_max:
         #   self.epsilon = 1e-6  # added to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0 causing inf
         #   self.logStd_min = -13  # e**(-13) = 2.26e-06; for stds
         #   self.logStd_max = 1
-        self.epsilonInit = config["EpsilonInit"]
-        #   self.epsilonDecay = config["EpsilonDecay"]  # so that epsilonDecay**(repalyBuffer.capacity/2) ~ epsilonMin; ex. 0.999**4600 ~ 0.01
-        self.epsilonMin = config["EpsilonMin"]
-        #   self.epsilonDecay = (self.epsilonInit - self.epsilonMin) / self.epsilonMaxActCount
-        self.epsilonLambda = config["EpsilonLambda"]
-        self.epsilon = self.epsilonInit
-        self.epsilonDecayCnt = 0
+
+        self.explorer = Explorer(mode, config, self.savePath)
 
         self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm layer in XXX_units list like [64,'bn',64]
         actor_hiddenUnits = config["Actor_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
@@ -77,18 +75,7 @@ class SAC_softmax_max:
         action_hiddenUnits = config["Critic_actionBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
         concat_hiddenUnits = config["Critic_concatenateBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
 
-        if mode == "continued_train":
-            self.actor = load_model(f"{self.savePath}/{self.__class__.__name__}/actor/")
-            self.critic1 = load_model(f"{self.savePath}/{self.__class__.__name__}/critic1/")
-            self.target_critic1 = load_model(f"{self.savePath}/{self.__class__.__name__}/target_critic1/")
-            if self.isCritic2:
-                self.critic2 = load_model(f"{self.savePath}/{self.__class__.__name__}/critic2/")
-                self.target_critic2 = load_model(f"{self.savePath}/{self.__class__.__name__}/target_critic2/")
-            if self.isTargetActor:
-                self.target_actor = load_model(f"{self.savePath}/{self.__class__.__name__}/target_actor/")
-            self.actor.summary(print_fn=self.logger.info)
-            self.critic1.summary(print_fn=self.logger.info)
-        elif mode == "train":
+        if mode == "train":
             self.actor = self.build_actor(observDim, actor_hiddenUnits, actionDim, self.tfDtype)
             self.critic1 = self.build_critic(observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype)
             self.target_critic1 = self.build_critic(observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype, trainable=False)
@@ -101,8 +88,20 @@ class SAC_softmax_max:
                 self.target_critic2 = self.build_critic(observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype, trainable=False)
                 self.critic2_optimizer = Adam(self.critic_lr)
         elif mode == "test": 
-            self.actor = load_model(f"{self.savePath}/{self.__class__.__name__}/actor/")
+            self.actor = load_model(f"{self.savePath}/actor/")
             self.actor.summary(print_fn=self.logger.info)
+        elif mode == "continued_train":
+            self.actor = load_model(f"{self.savePath}/actor/")
+            self.critic1 = load_model(f"{self.savePath}/critic1/")
+            self.target_critic1 = load_model(f"{self.savePath}/target_critic1/")
+            if self.isCritic2:
+                self.critic2 = load_model(f"{self.savePath}/critic2/")
+                self.target_critic2 = load_model(f"{self.savePath}/target_critic2/")
+            if self.isTargetActor:
+                self.target_actor = load_model(f"{self.savePath}/target_actor/")
+            self.actor.summary(print_fn=self.logger.info)
+            self.critic1.summary(print_fn=self.logger.info)
+            self.explorer.load()
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
         observ = Input(shape=(observDim,), dtype=dtype, name="actor_inputs")
@@ -356,10 +355,7 @@ class SAC_softmax_max:
         return:
             action: 1d ndarray
         """
-        self.epsilon = self.epsilonMin + (self.epsilonInit - self.epsilonMin) * math.exp(-self.epsilonLambda * self.epsilonDecayCnt)
-        self.epsilonDecayCnt += 1
-
-        if (self.mode == "train") and np.random.random() < self.epsilon: 
+        if self.explorer.isReadyToExplore():
             actionToEnv = actionCoder.random_vec()
             action = actionCoder.encode(actionToEnv)
         else:
@@ -376,15 +372,16 @@ class SAC_softmax_max:
         return b1 and b2 and b3  #   and b4
 
     def save(self, msg=""):
-        self.actor.save(f"{self.savePath}/{self.__class__.__name__}/actor/")
-        self.critic1.save(f"{self.savePath}/{self.__class__.__name__}/critic1/")
-        self.target_critic1.save(f"{self.savePath}/{self.__class__.__name__}/target_critic1/")
+        self.actor.save(f"{self.savePath}/actor/")
+        self.critic1.save(f"{self.savePath}/critic1/")
+        self.target_critic1.save(f"{self.savePath}/target_critic1/")
         if self.isTargetActor:
-            self.target_actor.save(f"{self.savePath}/{self.__class__.__name__}/target_actor/")
+            self.target_actor.save(f"{self.savePath}/target_actor/")
         if self.isCritic2:
-            self.critic2.save(f"{self.savePath}/{self.__class__.__name__}/critic2/")
-            self.target_critic2.save(f"{self.savePath}/{self.__class__.__name__}/target_critic2/")
-        self.replayBuffer.save(f"{self.savePath}/{self.__class__.__name__}/replayBuffer.json")
+            self.critic2.save(f"{self.savePath}/critic2/")
+            self.target_critic2.save(f"{self.savePath}/target_critic2/")
+        self.replayBuffer.save(f"{self.savePath}/replayBuffer.json")
+        self.explorer.save()
         self.logger.info(msg)
 
     def summary(self):

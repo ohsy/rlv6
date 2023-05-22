@@ -146,13 +146,14 @@ class Analyzer:
         self.sumReward_recent.append(self.sumReward)
         self.sumReward_max = self.sumReward if self.sumReward > self.sumReward_max else self.sumReward_max
         self.avgReward = self.sumReward / len(self.rewards)  # NOTE: sumReward != return as gamma is not applied
+        msg = f"({self.status}) episode {episodeCnt}: {tm:.3f}sec" 
+        msg += f", avg_loss0: {avg_loss0:.3f}" 
+        msg += ("" if len(self.losss1) == 0 else f", avg_loss1: {avg_loss1:.3f}") 
         if self.envName == EnvName.CartPole_v1.name:
-            msg = f"({self.status}) episode {episodeCnt}: {tm:.3f}sec, sumReward: {self.sumReward:.3f}, sumReward_max: {self.sumReward_max:.3f}" \
-                + f", avg_loss0: {avg_loss0:.3f}" + ("" if len(self.losss1) == 0 else f", avg_loss1: {avg_loss1:.3f}") \
-                + f", epsilon: {agent.explorer.epsilon:.3f}"
+            msg += f", sumReward: {self.sumReward:.3f}, sumReward_max: {self.sumReward_max:.3f}" 
         elif self.envName == EnvName.Pendulum_v1.name:
-            msg = f"({self.status}) episode {episodeCnt}: {tm:.3f}sec, avgReward: {self.avgReward:.3f}" \
-                + f", avg_loss0: {avg_loss0:.3f}" + ("" if len(self.losss1) == 0 else f", avg_loss1: {avg_loss1:.3f}") 
+            msg += f", avgReward: {self.avgReward:.3f}" 
+        msg += f", epsilon: {agent.explorer.epsilon:.3f}" if hasattr(agent.explorer,"epsilon") else ""
         logger.info(msg)
         agent.summaryWrite("sumReward", self.sumReward, step=episodeCnt)
         agent.summaryWrite("avgReward", self.avgReward, step=episodeCnt)
@@ -168,7 +169,7 @@ class Analyzer_CartPole_v1(Analyzer):
         self.sumReward_recent_mean = sum(self.sumReward_recent) / self.sumReward_recent_maxlen
         return self.sumReward_recent_mean > self.sumReward_toStopTrain
 
-class Analyzer_Pendulum_v1:
+class Analyzer_Pendulum_v1(Analyzer):
     def __init__(self, config):
         super().__init__(config)
         self.envName = "Pendulum_v1"

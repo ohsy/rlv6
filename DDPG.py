@@ -57,6 +57,8 @@ from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
 from ReplayBuffer import ReplayBuffer, PERBuffer
+from Explorer import Explorer_replayBufferFiller as Explorer
+
 
 class DDPG:
     def __init__(self, mode, config, logger, observDim, actionDim):
@@ -69,7 +71,7 @@ class DDPG:
 
         self.isTargetActor = config["TargetActor"]
         self.isCritic2 = config["Critic2"]
-        self.savePath = config["SavePath"] 
+        self.savePath = f"{config['SavePath']}/{self.__class__.__name__}"
         self.writer = tf.summary.create_file_writer(config["SummaryWriterPath"])
         self.isRewardNorm = config["RewardNormalization"]
         self.isPER = config["PER"]
@@ -97,6 +99,7 @@ class DDPG:
         self.actor_lr = config["Actor_learningRate"]
         self.critic_lr = config["Critic_learningRate"]
         self.gamma = tf.Variable(config["RewardDiscountRate_gamma"], dtype=self.tfDtype)
+        self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer)
 
         self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm layer in XXX_units list like [64,'bn',64]
         actor_hiddenUnits = config["Actor_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
@@ -104,21 +107,7 @@ class DDPG:
         action_hiddenUnits = config["Critic_actionBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
         concat_hiddenUnits = config["Critic_concatenateBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
 
-        if mode == "continued_train":
-            self.actor = load_model(f"{self.savePath}/{self.__class__.__name__}actor/")
-            self.critic1 = load_model(f"{self.savePath}/{self.__class__.__name__}critic1/")
-            self.target_critic1 = load_model(f"{self.savePath}/{self.__class__.__name__}target_critic1/")
-            self.actor_optimizer = Adam(self.actor_lr)
-            self.critic1_optimizer = Adam(self.critic_lr)
-            if self.isCritic2:
-                self.critic2 = load_model(f"{self.savePath}/{self.__class__.__name__}critic2/")
-                self.target_critic2 = load_model(f"{self.savePath}/{self.__class__.__name__}target_critic2/")
-                self.critic2_optimizer = Adam(self.critic_lr)
-            if self.isTargetActor:
-                self.target_actor = load_model(f"{self.savePath}/{self.__class__.__name__}target_actor/")
-            self.actor.summary(print_fn=self.logger.info)
-            self.critic1.summary(print_fn=self.logger.info)
-        elif mode == "train":
+        if mode == "train":
             self.actor = self.build_actor(observDim, actor_hiddenUnits, actionDim, self.tfDtype)
             self.critic1 = self.build_critic(observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype)
             self.target_critic1 = self.build_critic(
@@ -133,8 +122,23 @@ class DDPG:
                         observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype, trainable=False)
                 self.critic2_optimizer = Adam(self.critic_lr)
         elif mode == "test": 
-            self.actor = load_model(f"{self.savePath}/{self.__class__.__name__}actor/")
+            self.actor = load_model(f"{self.savePath}/actor/")
             self.actor.summary(print_fn=self.logger.info)
+        elif mode == "continued_train":
+            self.actor = load_model(f"{self.savePath}/actor/")
+            self.critic1 = load_model(f"{self.savePath}/critic1/")
+            self.target_critic1 = load_model(f"{self.savePath}/target_critic1/")
+            self.actor_optimizer = Adam(self.actor_lr)
+            self.critic1_optimizer = Adam(self.critic_lr)
+            if self.isCritic2:
+                self.critic2 = load_model(f"{self.savePath}/critic2/")
+                self.target_critic2 = load_model(f"{self.savePath}/target_critic2/")
+                self.critic2_optimizer = Adam(self.critic_lr)
+            if self.isTargetActor:
+                self.target_actor = load_model(f"{self.savePath}/target_actor/")
+            self.actor.summary(print_fn=self.logger.info)
+            self.critic1.summary(print_fn=self.logger.info)
+            self.explorer.load()
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
         observ = Input(shape=(observDim,), dtype=self.tfDtype, name="actor_inputs")
@@ -318,7 +322,7 @@ class DDPG:
         return:
             action: 1d ndarray
         """
-        if (self.mode == "train") and not self.isReadyToTrain():
+        if self.explorer.isReadyToExplore():
             actionToEnv = actionCoder.random_vec()
             action = actionCoder.encode(actionToEnv)
         else:
@@ -329,22 +333,23 @@ class DDPG:
         return action
 
     def isReadyToTrain(self):
-        b1 = self.mode == "train"
+        b1 = self.mode in ["train", "continued_train"]
         b2 = self.replayBuffer.memoryCnt > self.memoryCnt_toStartTrain
         b3 = self.replayBuffer.memoryCnt > self.batchSz
         #   b4 = self.actCnt % 1 == 0
         return b1 and b2 and b3  #   and b4
 
     def save(self, msg=""):
-        self.actor.save(f"{self.savePath}/{self.__class__.__name__}/actor/")
-        self.critic1.save(f"{self.savePath}/{self.__class__.__name__}/critic1/")
-        self.target_critic1.save(f"{self.savePath}/{self.__class__.__name__}/target_critic1/")
+        self.actor.save(f"{self.savePath}/actor/")
+        self.critic1.save(f"{self.savePath}/critic1/")
+        self.target_critic1.save(f"{self.savePath}/target_critic1/")
         if self.isTargetActor:
-            self.target_actor.save(f"{self.savePath}/{self.__class__.__name__}/target_actor/")
+            self.target_actor.save(f"{self.savePath}/target_actor/")
         if self.isCritic2:
-            self.critic2.save(f"{self.savePath}/{self.__class__.__name__}/critic2/")
-            self.target_critic2.save(f"{self.savePath}/{self.__class__.__name__}/target_critic2/")
-        self.replayBuffer.save(f"{self.savePath}/{self.__class__.__name__}/replayBuffer.json")
+            self.critic2.save(f"{self.savePath}/critic2/")
+            self.target_critic2.save(f"{self.savePath}/target_critic2/")
+        self.replayBuffer.save(f"{self.savePath}/replayBuffer.json")
+        self.explorer.save()
         self.logger.info(msg)
 
     def summary(self):
