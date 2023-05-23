@@ -323,7 +323,7 @@ class DDPG:
             action: 1d ndarray
         """
         if self.explorer.isReadyToExplore():
-            actionToEnv = actionCoder.random_vec()
+            actionToEnv = actionCoder.random_decoded()
             action = actionCoder.encode(actionToEnv)
         else:
             observ = tf.convert_to_tensor(observ)

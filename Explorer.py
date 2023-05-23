@@ -1,3 +1,7 @@
+
+import math
+import random
+
 class Explorer_epsilonDecay:
     def __init__(self, mode, config, savePath):
         self.mode = mode
@@ -12,7 +16,7 @@ class Explorer_epsilonDecay:
         self.epsilonDecay = config["EpsilonDecay"]  
             # so that epsilonDecay**(repalyBuffer.capacity/2) ~ epsilonMin; ex. 0.999**4600 ~ 0.01
         if mode == "continued_train":
-            self.load(self.filePath)
+            self.load()
         
     def isReadyToExplore(self):
         self.decay_epsilon()

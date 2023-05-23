@@ -150,7 +150,7 @@ class DQN:
             self.logger.debug(f"Q={Q}")
             self.logger.debug(f"action={action}")
             action_th_Q = tf.reduce_sum(Q * action, axis=1, keepdims=True)      # action as mask; shape=(batchSz,1)
-            self.logger.debug(f"action-th_Q={action_th_Q}", flush=True)
+            self.logger.debug(f"action-th_Q={action_th_Q}")
             td_error = tf.square(y - action_th_Q)                       # shape=(batchSz,1)
             self.logger.debug(f"td_error={td_error}")
             if self.isPER:
@@ -191,7 +191,7 @@ class DQN:
             action: one-hot vector of the maximum-Q-node in output layer; shape=(actionDim)
         """
         if self.explorer.isReadyToExplore():
-            actionToEnv = actionCoder.random_vec()  # get a random actionToEnv
+            actionToEnv = actionCoder.random_decoded()  # get a random actionToEnv
             action = actionCoder.encode(actionToEnv)
             Q_max = 0  # dummy
         else:
