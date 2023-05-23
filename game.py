@@ -13,8 +13,8 @@ import gymnasium as gym
 import tensorflow as tf
 from importlib import import_module
 from collections import deque
-import envUtil
-import analyzer as analy
+import coder as cdr
+import analyzer as anl
 
 from enum import Enum
 class Mode(Enum):
@@ -39,23 +39,23 @@ class Game:
         self.config = config
         self.period_toSaveModels = config["Period_toSaveModels"]
 
-    def run(self, nEpisodes, mode, env, agent, EnvUtil, analyzer):
+    def run(self, nEpisodes, mode, env, agent, Coder, analyzer):
         for episodeCnt in range(1, nEpisodes+1):  # for episodeCnt in tqdm(range(1, nEpisodes+1)):
             analyzer.beforeEpisode()
             observFrEnv, info = env.reset()  # observFrEnv shape=(observDim)
             while True:
                     #   print(f"observFrEnv={observFrEnv}")
-                observ = EnvUtil.observCoder.encode(observFrEnv)    # shape=(observDim)
+                observ = Coder.observCoder.encode(observFrEnv)    # shape=(observDim)
                     #   print(f"observ={observ}")
             
-                action = agent.act(observ, EnvUtil.actionCoder)     # actionCoder to get random action to explore; action shape=(actionDim)
+                action = agent.act(observ, Coder.actionCoder)     # actionCoder to get random action to explore; action shape=(actionDim)
 
-                actionToEnv = EnvUtil.actionCoder.decode(action)    # actionToEnv: scalar for Discrete, shape=(actionToEnv.nParameters) for Box 
+                actionToEnv = Coder.actionCoder.decode(action)    # actionToEnv: scalar for Discrete, shape=(actionToEnv.nParameters) for Box 
 
                 next_observFrEnv, reward, terminated, truncated, info = env.step(actionToEnv)
 
                 done = (terminated or truncated)  # bool
-                experience = EnvUtil.experienceFrom(observFrEnv, actionToEnv, reward, next_observFrEnv, done, agent.npDtype)
+                experience = Coder.experienceFrom(observFrEnv, actionToEnv, reward, next_observFrEnv, done, agent.npDtype)
                 agent.replayBuffer.remember(experience)
  
                 if agent.isReadyToTrain():
@@ -115,14 +115,14 @@ if __name__ == "__main__":
     mode = Mode(args.mode)  # Mode[config["Mode"]]
     logger = getLogger(filepath= f"{config['LogPath']}/{envName.value}_{agentName.value}_{mode.value}.log")   
 
-    EnvUtil = getattr(envUtil, f"EnvUtil_{envName.name}")  # class; to make experienceFrom() use child class's coder
-    analyzer = getattr(analy, f"Analyzer_{envName.name}")(config, logger)
+    Coder = getattr(cdr, f"Coder_{envName.name}")  # class; to make experienceFrom() use child class's coder
+    analyzer = getattr(anl, f"Analyzer_{envName.name}")(config, logger)
     render_mode = "human" if mode == Mode.test else None  
     env = gym.make(envName.value, render_mode=render_mode)
 
     agentModule = import_module(f"{agentName.name}")
     Agent = getattr(agentModule, f"{agentName.name}")
-    agent = Agent(mode.value, config, logger, observDim=EnvUtil.observCoder.encodedDim, actionDim=EnvUtil.actionCoder.encodedDim)
+    agent = Agent(mode.value, config, logger, observDim=Coder.observCoder.encodedDim, actionDim=Coder.actionCoder.encodedDim)
 
     nEpisodes = config["NumOfEpisodes_toTrain"] if mode in [Mode.train, Mode.continued_train] else config["NumOfEpisodes_toTest"] 
 
@@ -132,12 +132,12 @@ if __name__ == "__main__":
     logger.info(f"config={config}")
     logger.info(f"env action space: {env.action_space}")
     logger.info(f"env observation space: {env.observation_space}")
-    logger.info(f"EnvUtil={EnvUtil.__name__}")
+    logger.info(f"Coder={Coder.__name__}")
     logger.info(f"analyzer={analyzer.__class__.__name__}")
     logger.info(f"nEpisodes={nEpisodes}")
 
     game = Game(config)
-    game.run(nEpisodes, mode, env, agent, EnvUtil, analyzer)
+    game.run(nEpisodes, mode, env, agent, Coder, analyzer)
 
     logger.info(f"total time={time.time() - before}")
 

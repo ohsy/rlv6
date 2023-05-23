@@ -2,7 +2,7 @@
 import numpy as np
 from NodeCoder import NodeCoder
 
-class EnvUtil:
+class Coder:
     observCoder : NodeCoder
     actionCoder : NodeCoder
 
@@ -21,14 +21,14 @@ class EnvUtil:
         return ex
 
 
-class EnvUtil_CartPole_v1(EnvUtil):
+class Coder_CartPole_v1(Coder):
     observCoder = NodeCoder(nNodes=[1,1,1,1],
                            low=[-4.8, np.finfo(np.float32).min / 2, -0.418, np.finfo(np.float32).min / 2],
                            high=[4.8, np.finfo(np.float32).max / 2, 0.418, np.finfo(np.float32).max / 2], scaleshift=None)
     actionCoder = NodeCoder(nNodes=[2], possibles=[[0,1]], scaleshift=None, isDecodedScalar=True)
 
 
-class EnvUtil_Pendulum_v1(EnvUtil):
+class Coder_Pendulum_v1(Coder):
     observCoder = NodeCoder(nNodes=[1,1,1], low=[-1, -1, -8], high=[1,1,8], scaleshift=None)
     actionCoder = NodeCoder(nNodes=[1], low=[-2], high=[2], scaleshift=None)
 
