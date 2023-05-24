@@ -183,22 +183,14 @@ class SAC:
         with tf.GradientTape() as tape:
             action, logProb = self.get_action_logProb(observ)   # action, logProb: shape=(batchSz,1)
             Q1 = self.critic1([observ, action])                 # shape=(batchSz,1)
-            Q1_soft = Q1 - self.alpha * logProb                 # shape=(batchSz,1)
-            actor_loss = -tf.reduce_mean(Q1_soft)               # shape=()
-        actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
-        self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
-        return actor_loss
-
-    @tf.function
-    def update_actor_with2critics(self, observ):
-        """ Args: observ: shape=(batchSz,observDim) """
-        with tf.GradientTape() as tape:
-            action, logProb = self.get_action_logProb(observ)   # action, logProb: shape=(batchSz,1)
-            Q1 = self.critic1([observ, action])                 # shape=(batchSz,1)
-            Q2 = self.critic2([observ, action])                 # shape=(batchSz,1)
-            Q_min = tf.minimum(Q1, Q2)                          # shape=(batchSz,1)
-            Q_soft = Q_min - self.alpha * logProb               # shape=(batchSz,1)
+            if self.isCritic2:
+                Q2 = self.critic2([observ, action])             # shape=(batchSz,1)
+                Q_min = tf.minimum(Q1, Q2)                      # shape=(batchSz,1)
+                Q_soft = Q_min - self.alpha * logProb           # shape=(batchSz,1)
+            else:
+                Q_soft = Q1 - self.alpha * logProb              # shape=(batchSz,1)
             actor_loss = -tf.reduce_mean(Q_soft)                # shape=()
+
         actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
         return actor_loss
@@ -210,49 +202,36 @@ class SAC:
             action: shape=(batchSz,actionDim)
             done, reward: shape=(batchSz,1)
         """
-        with tf.GradientTape() as tape:
-            next_action, next_logProb = self.get_action_logProb(next_observ, withTarget=self.isTargetActor) # shape=(batchSz,1)
-            target_Q = self.target_critic1([next_observ, next_action])  # shape=(batchSz,1)
-            target_Q_soft = target_Q - self.alpha * next_logProb    # shape=(batchSz,1)
-            y = reward + (1.0 - done) * self.gamma * target_Q_soft  # shape=(batchSz,1)
-
-            Q = self.critic1([observ, action])                      # shape=(batchSz,1)
-            td_error = tf.square(y - Q)                             # shape=(batchSz,1)
-            if self.isPER:
-                critic1_loss = tf.reduce_mean(importance_weights * td_error)    # shape=(batchSz,1)
-            else:
-                critic1_loss = tf.reduce_mean(td_error)                 # shape=(batchSz,1)
-        critic1_grads = tape.gradient(critic1_loss, self.critic1.trainable_variables)
-        self.critic1_optimizer.apply_gradients(zip(critic1_grads, self.critic1.trainable_variables))
-        return critic1_loss, td_error
-
-    @tf.function
-    def update_2critics(self, observ, action, reward, next_observ, done, importance_weights):
         with tf.GradientTape(persistent=True) as tape:
             next_action, next_logProb = self.get_action_logProb(next_observ, withTarget=self.isTargetActor) # shape=(batchSz,1)
             target_Q1 = self.target_critic1([next_observ, next_action]) # shape=(batchSz,1)
-            target_Q2 = self.target_critic2([next_observ, next_action]) # shape=(batchSz,1)
-            target_Q_min = tf.minimum(target_Q1, target_Q2)             # shape=(batchSz,1)
-            target_Q_soft = target_Q_min - self.alpha * next_logProb    # shape=(batchSz,1)
-            y = reward + (1.0 - done) * self.gamma * target_Q_soft      # shape=(batchSz,1)
-
-            Q1 = self.critic1([observ, action])                 # shape=(batchSz,1)
-            Q2 = self.critic2([observ, action])                 # shape=(batchSz,1)
-            td_error1 = tf.square(y - Q1)                       # shape=(batchSz,1)
-            td_error2 = tf.square(y - Q2)                       # shape=(batchSz,1)
-            td_error = tf.minimum(td_error1, td_error2)         # for monitoring; shape=(batchSz,1)
-            if self.isPER:
-                critic1_loss = tf.reduce_mean(importance_weights * td_error1)           # shape=()
-                critic2_loss = tf.reduce_mean(importance_weights * td_error2)           # shape=()
+            if self.isCritic2:
+                target_Q2 = self.target_critic2([next_observ, next_action]) # shape=(batchSz,1)
+                target_Q_min = tf.minimum(target_Q1, target_Q2)             # shape=(batchSz,1)
+                target_Q_soft = target_Q_min - self.alpha * next_logProb    # shape=(batchSz,1)
+                y = reward + (1.0 - done) * self.gamma * target_Q_soft      # shape=(batchSz,1)
+                Q2 = self.critic2([observ, action])                         # shape=(batchSz,1)
+                td_error2 = tf.square(y - Q2)                               # shape=(batchSz,1)
+                td_error2 = importance_weights * td_error2 if self.isPER else td_error2
+                critic2_loss = tf.reduce_mean(td_error2)                    # shape=()
             else:
-                critic1_loss = tf.reduce_mean(td_error1)                                # shape=()
-                critic2_loss = tf.reduce_mean(td_error2)                                # shape=()
-        critic1_grads = tape.gradient(critic1_loss, self.critic1.trainable_variables)
-        critic2_grads = tape.gradient(critic2_loss, self.critic2.trainable_variables)
-        self.critic1_optimizer.apply_gradients(zip(critic1_grads, self.critic1.trainable_variables))
-        self.critic2_optimizer.apply_gradients(zip(critic2_grads, self.critic2.trainable_variables))
-        return critic1_loss, critic2_loss, td_error
+                target_Q_soft = target_Q1 - self.alpha * next_logProb       # shape=(batchSz,1)
+                y = reward + (1.0 - done) * self.gamma * target_Q_soft      # shape=(batchSz,1)
+            Q1 = self.critic1([observ, action])                             # shape=(batchSz,1)
+            td_error1 = tf.square(y - Q1)                                   # shape=(batchSz,1)
+            td_error1 = importance_weights * td_error1 if self.isPER else td_error1
+            critic1_loss = tf.reduce_mean(td_error1)                        # shape=()
 
+        critic1_grads = tape.gradient(critic1_loss, self.critic1.trainable_variables)
+        self.critic1_optimizer.apply_gradients(zip(critic1_grads, self.critic1.trainable_variables))
+        if self.isCritic2:
+            critic2_grads = tape.gradient(critic2_loss, self.critic2.trainable_variables)
+            self.critic2_optimizer.apply_gradients(zip(critic2_grads, self.critic2.trainable_variables))
+                #   td_error = tf.minimum(td_error1, td_error2)                     # for monitoring; shape=(batchSz,1)
+            return critic1_loss, td_error1, critic2_loss
+        else:
+            return critic1_loss, td_error1
+            
     #   @tf.function  # NOTE: recommended not to use tf.function. zip problem?? And not much enhancement. 
     def soft_update(self):
         source1 = self.critic1.variables
@@ -272,30 +251,22 @@ class SAC:
 
     #   @tf.function  # NOTE recommended not to use tf.function. cross function problem?? And not much enhancement.
     def train(self, batch, importance_weights):
-        if self.isCritic2:
-            critic1_loss, critic2_loss, td_error = self.update_2critics(
-                    batch.observ,
-                    batch.action,
-                    batch.reward,
-                    batch.next_observ,
-                    batch.done,
-                    importance_weights
-            )
-            actor_loss = self.update_actor_with2critics(batch.observ)
-        else:
-            critic1_loss, td_error = self.update_critic(
-                    batch.observ,
-                    batch.action,
-                    batch.reward,
-                    batch.next_observ,
-                    batch.done,
-                    importance_weights
-            )
-            actor_loss = self.update_actor(batch.observ)
-
+        loss_error = self.update_critic(
+                batch.observ,
+                batch.action,
+                batch.reward,
+                batch.next_observ,
+                batch.done,
+                importance_weights
+        )
+        actor_loss = self.update_actor(batch.observ)
         self.soft_update()
-        return (critic1_loss, actor_loss), td_error  # (,) to be consistent with DQN return
-        #   return critic1_loss, td_error  # (,) to be consistent with DQN return
+
+        if self.isCritic2:
+            critic1_loss, td_error1, critic2_loss = loss_error
+        else:
+            critic1_loss, td_error1 = loss_error
+        return (critic1_loss, actor_loss), td_error1  # (,) to be consistent with DQN return
 
     #   @tf.function  # NOTE recommended not to use tf.function. And not much enhancement.
     def act(self, observ, actionCoder):

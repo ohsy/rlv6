@@ -22,6 +22,10 @@ class Coder:
 
 
 class Coder_CartPole_v1(Coder):
+    """ 
+    observation: Cart Position, Cart Velocity, Pole Angle, Pole Angular Velocity 
+    action: 0 for Push cart to the left, 1 for Push cart to the right
+    """
     observCoder = NodeCoder(nNodes=[1,1,1,1],
                            low=[-4.8, np.finfo(np.float32).min / 2, -0.418, np.finfo(np.float32).min / 2],
                            high=[4.8, np.finfo(np.float32).max / 2, 0.418, np.finfo(np.float32).max / 2], scaleshift=None)
@@ -29,6 +33,10 @@ class Coder_CartPole_v1(Coder):
 
 
 class Coder_Pendulum_v1(Coder):
+    """ 
+    observation: x=cos(theta), y=sin(theta), Angular Velocity
+    action: torque
+    """
     observCoder = NodeCoder(nNodes=[1,1,1], low=[-1, -1, -8], high=[1,1,8], scaleshift=None)
     actionCoder = NodeCoder(nNodes=[1], low=[-2], high=[2], scaleshift=None)
 

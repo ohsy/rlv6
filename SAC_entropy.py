@@ -21,7 +21,7 @@ from ReplayBuffer import ReplayBuffer, PERBuffer
 from Explorer import Explorer_epsilonDecay as Explorer
 
 
-class SAC_softmax:
+class SAC_entropy:
     def __init__(self, mode, config, logger, observDim, actionDim):
         self.config = config
         self.logger = logger
@@ -112,23 +112,31 @@ class SAC_softmax:
         net = Model(inputs=observ, outputs=actionProb, name="actor")
         return net
 
-    def get_action_logProb(self, observ, withTarget=False):
-        prob = self.target_actor(observ) if withTarget else self.actor(observ)  # softmax; shape=(batchSz,actionDim)
-        self.logger.debug(f"in get_action_logProb: prob={prob}")
-        """
-        dist = tfp.distributions.Multinomial(total_count=1, probs=prob)         # batchSz distributions
-        action = dist.sample()              # one-hot vector; shape=(batchSz,actionDim)
-        self.logger.debug(f"action={action}")
-        logProb = dist.log_prob(action)     # shape=(batchSz)
-        logProb = tf.expand_dims(logProb, axis=1)  # shape=(batchSz,1)
-        """
-        maxIdx = tf.argmax(prob, axis=1)    # shape=(batchSz)
-        action_oneHot = tf.one_hot(maxIdx, self.actionDim, dtype=self.tfDtype)  # maxIdx.size == batchSz; shape=(batchSz,actionDim)
-        maxProb = tf.reduce_max(prob, axis=1, keepdims=True)    # shape=(batchSz,1)
-        logProb = tf.math.log(maxProb)                          # shape=(batchSz,1)
+    def get_actionProb_entropy(self, observ, withTarget=False):
+        actionProb = self.target_actor(observ) if withTarget else self.actor(observ)  # softmax; shape=(batchSz,actionDim)
+        self.logger.debug(f"in get_action_logProb: prob={actionProb}")
+        logProb = tf.math.log(actionProb)                                             # shape=(batchSz,actionDim)
+        entropy = tf.reduce_sum(-actionProb * logProb, axis=1, keepdims=True)         # shape=(batchSz,1)
 
-        self.logger.debug(f"logProb={logProb}")
-        return action_oneHot, logProb
+        return actionProb, entropy
+
+    def get_action(self, observ):
+        """
+        Args:
+            observ: shape=(observDim)
+        """
+        actionProb = self.actor(observ)  # softmax; shape=(batchSz,actionDim)
+        """ 
+        # get action by sampling 
+        dist = tfp.distributions.Multinomial(total_count=1, probs=actionProb)         # batchSz distributions
+        action = dist.sample()              # one-hot vector; shape=(batchSz,actionDim)
+        """
+        # get the action of max actionProb
+        maxIdx = tf.argmax(actionProb, axis=1)    # shape=(batchSz)
+        action = tf.one_hot(maxIdx, self.actionDim, dtype=self.tfDtype)  # shape=(batchSz,actionDim)
+            #   maxProb = tf.reduce_max(actionProb, axis=1, keepdims=True)    # shape=(batchSz,1)
+        self.logger.debug(f"action={action}")
+        return action
 
     def build_critic(self, observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, dtype, trainable=True):
         observ_inputs = Input(shape=(observDim,), dtype=dtype, name="critic_observ_inputs")
@@ -177,30 +185,16 @@ class SAC_softmax:
     def update_actor(self, observ):
         """ Args: observ: shape=(batchSz,observDim) """
         with tf.GradientTape() as tape:
-            action, logProb = self.get_action_logProb(observ)   # action shape=(batchSz,actionDim), logProb shape=(batchSz,1)
-            Q1 = self.critic1([observ, action])                 # shape=(batchSz,1) 
-            Q1_soft = Q1 - self.alpha * logProb                 # shape=(batchSz,1)
-            actor_loss = -tf.reduce_mean(Q1_soft)               # shape=()
-        actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)  
-        self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables)) 
-        return actor_loss
-
-    @tf.function
-    def update_actor_with2critics(self, observ):
-        """ Args: observ: shape=(batchSz,observDim) """
-        self.logger.debug("in update_actor_with2critics:")
-        with tf.GradientTape() as tape:
-            action, logProb = self.get_action_logProb(observ)   # action shape=(batchSz,actionDim), logProb shape=(batchSz,1)
-            self.logger.debug(f"action={action}")
-            self.logger.debug(f"logProb={logProb}")
-            Q1 = self.critic1([observ, action])                 # shape=(batchSz,1)
-            self.logger.debug(f"Q1={Q1}")
-            Q2 = self.critic2([observ, action])                 # shape=(batchSz,1)
-            Q_min = tf.minimum(Q1, Q2)                          # shape=(batchSz,1)
-            Q_soft = Q_min - self.alpha * logProb               # shape=(batchSz,1)
-            self.logger.debug(f"Q_soft={Q_soft}")
+            actionProb, entropy = self.get_actionProb_entropy(observ)   # shape=(batchSz,actionDim) and batchSz,1)
+            Q1 = self.critic1([observ, actionProb])             # shape=(batchSz,1)
+            if self.isCritic2:
+                Q2 = self.critic2([observ, actionProb])         # shape=(batchSz,1)
+                Q_min = tf.minimum(Q1, Q2)                      # shape=(batchSz,1)
+                Q_soft = Q_min + self.alpha * entropy           # shape=(batchSz,1)
+            else:
+                Q_soft = Q1 + self.alpha * entropy              # shape=(batchSz,1)
             actor_loss = -tf.reduce_mean(Q_soft)                # shape=()
-            self.logger.debug(f"actor_loss={actor_loss}")
+
         actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
         return actor_loss
@@ -212,60 +206,36 @@ class SAC_softmax:
             action: one-hot vector for actionToEnv in possibleValuesFor[]; shape=(batchSz,actionDim) 
             done, reward: shape=(batchSz,1)
         """
-        with tf.GradientTape() as tape:
-            next_action, next_logProb = self.get_action_logProb(next_observ, withTarget=self.isTargetActor) # action shape=(batchSz,actionDim), logProb shape=(batchSz,1)
-            target_Q = self.target_critic1([next_observ, next_action])  # shape=(batchSz,1)
-            target_Q_soft = target_Q - self.alpha * next_logProb        # shape=(batchSz,1)
-
-            y = reward + (1.0 - done) * self.gamma * target_Q_soft      # shape=(batchSz,1)
-
-            Q = self.critic1([observ, action])                          # shape=(batchSz,1)
-            td_error = tf.square(y - Q)                                 # shape=(batchSz,1)
-            if self.isPER:
-                critic1_loss = tf.reduce_mean(importance_weights * td_error)    # shape=()
-            else:
-                critic1_loss = tf.reduce_mean(td_error)                         # shape=()
-        critic1_grads = tape.gradient(critic1_loss, self.critic1.trainable_variables)
-        self.critic1_optimizer.apply_gradients(zip(critic1_grads, self.critic1.trainable_variables))
-        return critic1_loss, td_error
-
-    @tf.function
-    def update_2critics(self, observ, action, reward, next_observ, done, importance_weights):
-        self.logger.debug("in update_2critics")
         with tf.GradientTape(persistent=True) as tape:
-            next_action, next_logProb = self.get_action_logProb(next_observ, withTarget=self.isTargetActor) # action shape=(batchSz,actionDim), logProb shape=(batchSz,1)
-            self.logger.debug(f"next_action={next_action}")
-            self.logger.debug(f"next_logProb={next_logProb}")
-
-            target_Q1 = self.target_critic1([next_observ, next_action])     # shape=(batchSz,1)
-            target_Q2 = self.target_critic2([next_observ, next_action])     # shape=(batchSz,1)
-            target_Q_min = tf.minimum(target_Q1, target_Q2)                 # shape=(batchSz,1)
-            self.logger.debug(f"target_Q_min={target_Q_min}")
-            target_Q_soft = target_Q_min - self.alpha * next_logProb                            # shape=(batchSz,1)
-            self.logger.debug(f"target_Q_soft={target_Q_soft}")
-
-            y = reward + (1.0 - done) * self.gamma * target_Q_soft          # shape=(batchSz,1)
-            self.logger.debug(f"y={y}")
+            next_actionProb, next_entropy = self.get_actionProb_entropy(next_observ, withTarget=self.isTargetActor) # shape=(batchSz,actionDim) and (batchSz,1)
+            target_Q1 = self.target_critic1([next_observ, next_actionProb])     # shape=(batchSz,1)
+            if self.isCritic2:
+                target_Q2 = self.target_critic2([next_observ, next_actionProb])     # shape=(batchSz,1)
+                target_Q_min = tf.minimum(target_Q1, target_Q2)                 # shape=(batchSz,1)
+                target_Q_soft = target_Q_min + self.alpha * next_entropy                            # shape=(batchSz,1)
+                y = reward + (1.0 - done) * self.gamma * target_Q_soft          # shape=(batchSz,1)
+                Q2 = self.critic2([observ, action])
+                td_error2 = tf.square(y - Q2)             
+                td_error2 = importance_weights * td_error2 if self.isPER else td_error2
+                critic2_loss = tf.reduce_mean(td_error2)
+            else:
+                target_Q_soft = target_Q1 + self.alpha * next_entropy        # shape=(batchSz,1)
+                y = reward + (1.0 - done) * self.gamma * target_Q_soft      # shape=(batchSz,1)
 
             Q1 = self.critic1([observ, action])                             # shape=(batchSz,1)
-            self.logger.debug(f"Q1={Q1}")
-            Q2 = self.critic2([observ, action])
             td_error1 = tf.square(y - Q1)                                   # shape=(batchSz,1)
-            self.logger.debug(f"td_error1={td_error1}")
-            td_error2 = tf.square(y - Q2)             
-            td_error = tf.minimum(td_error1, td_error2)                     # shape=(batchSz,1)
-            if self.isPER:
-                critic1_loss = tf.reduce_mean(importance_weights * td_error1)           # shape=()
-                critic2_loss = tf.reduce_mean(importance_weights * td_error2)   
-            else:
-                critic1_loss = tf.reduce_mean(td_error1)                                # shape=()
-                critic2_loss = tf.reduce_mean(td_error2)
-                    #   print(f"critic1_loss={critic1_loss}")
+            td_error1 = importance_weights * td_error1 if self.isPER else td_error1
+            critic1_loss = tf.reduce_mean(td_error1)                                # shape=()
+
         critic1_grads = tape.gradient(critic1_loss, self.critic1.trainable_variables)
-        critic2_grads = tape.gradient(critic2_loss, self.critic2.trainable_variables)
         self.critic1_optimizer.apply_gradients(zip(critic1_grads, self.critic1.trainable_variables))
-        self.critic2_optimizer.apply_gradients(zip(critic2_grads, self.critic2.trainable_variables))
-        return critic1_loss, critic2_loss, td_error
+        if self.isCritic2:
+            critic2_grads = tape.gradient(critic2_loss, self.critic2.trainable_variables)
+            self.critic2_optimizer.apply_gradients(zip(critic2_grads, self.critic2.trainable_variables))
+                #   td_error = tf.minimum(td_error1, td_error2)                     # shape=(batchSz,1)
+            return critic1_loss, td_error1, critic2_loss
+        else:
+            return critic1_loss, td_error1
 
     #   @tf.function  # NOTE: recommended not to use tf.function. zip problem?? And not much enhancement. 
     def soft_update(self):
@@ -286,46 +256,39 @@ class SAC_softmax:
 
     #   @tf.function  # NOTE recommended not to use tf.function. cross function problem?? And not much enhancement.
     def train(self, batch, importance_weights):
-        if self.isCritic2:
-            critic1_loss, critic2_loss, td_error = self.update_2critics(
-                    batch.observ,
-                    batch.action,
-                    batch.reward,
-                    batch.next_observ,
-                    batch.done,
-                    importance_weights
-            )
-            actor_loss = self.update_actor_with2critics(batch.observ)
-        else:
-            critic1_loss, td_error = self.update_critic(
-                    batch.observ,
-                    batch.action,
-                    batch.reward,
-                    batch.next_observ,
-                    batch.done,
-                    importance_weights
-            )
-            actor_loss = self.update_actor(batch.observ)
-
+        loss_error = self.update_critic(
+                batch.observ,
+                batch.action,
+                batch.reward,
+                batch.next_observ,
+                batch.done,
+                importance_weights
+        )
+        actor_loss = self.update_actor(batch.observ)
         self.soft_update()
-        return (critic1_loss, actor_loss), td_error  # (,) to be consistent with DQN return
-                #   return critic1_loss, td_error  # (,) to be consistent with DQN return
+            
+        if self.isCritic2:
+            critic1_loss, td_error1, critic2_loss = loss_error
+        else:
+            critic1_loss, td_error1 = loss_error
+        return (critic1_loss, actor_loss), td_error1  # (,) to be consistent with DQN return
 
     #   @tf.function  # NOTE recommended not to use tf.function. And not much enhancement.
     def act(self, observ, actionCoder):
         """
         Args:
-            observFrEnv: 1d ndarray
+            observ: shape=(observDim)
         return:
-            action: 1d ndarray
+            action: shape=(actionDim)
         """
         if self.explorer.isReadyToExplore():
             actionToEnv = actionCoder.random_decoded()
             action = actionCoder.encode(actionToEnv)
         else:
             observ = tf.convert_to_tensor(observ)
-            observ = tf.expand_dims(observ, axis=0)  # shape=(1,observDim) to input to net
-            action = self.get_action_logProb(observ)[0][0]  # returns ([action], [logProb]); each shape=(batchSz,actionDim), and shape=(batchSz,1)
+            observ = tf.expand_dims(observ, axis=0) # shape=(1,observDim) to input to net
+            action = self.get_action(observ)        # shape=(1,actionDim) 
+            action = action[0]                      # shape=(actionDim)
         return action
 
     def isReadyToTrain(self):
