@@ -42,7 +42,6 @@ class Explorer_epsilonDecay:
             self.epsilonDecayCnt = int(lst[1])
 
 
-
 class Explorer_replayBufferFiller:
     def __init__(self, mode, config, savePath, replayBuffer):
         self.mode = mode
