@@ -35,7 +35,7 @@
     "Critic_learningRate_comment"       : "0.0006 in general",
 
     "TargetActor"                       : false,
-    "Critic2"                           : false,
+    "Critic2"                           : true,
     "RewardNormalization"               : false,
     "PER"                               : false,
     "MemoryCapacity"                    : 10000,
@@ -49,8 +49,9 @@
     "EpsilonMin"                        : 0.01,
     "EpsilonMin_comment"                : "0.01 in general",
     "EpsilonLambda"                     : 0.0001,
-    "TemperatureParameter_alpha"        : 5.0,
+    "TemperatureParameter_alpha"        : 0.06,
     "TemperatureParameter_alpha_comment": "0.06 for SAC, SAC_discrete, 5.0 for SAC_entropy",
+    "SAC_entropy_isActionStochastic"    : false,
 
     "ending"                            : true
 }

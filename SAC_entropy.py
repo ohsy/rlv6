@@ -31,6 +31,7 @@ class SAC_entropy:
         self.npIntDtype = np.dtype(config["intdtype"])
         self.actionDim = actionDim
 
+        self.isActionStochastic = config["SAC_entropy_isActionStochastic"]  # vs. deterministic with max prob.
         self.isTargetActor = config["TargetActor"]
         self.isCritic2 = config["Critic2"]
         self.savePath = f"{config['SavePath']}/{self.__class__.__name__}"
@@ -63,6 +64,7 @@ class SAC_entropy:
         self.gamma = tf.Variable(config["RewardDiscountRate_gamma"], dtype=self.tfDtype) 
         self.alpha = tf.Variable(config["TemperatureParameter_alpha"], dtype=self.tfDtype)
         self.alpha = 5.0  # TEMP
+        self.eps = 1e-6  # tiny quentity added to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0 causing inf
 
         self.explorer = Explorer(mode, config, self.savePath)
 
@@ -108,40 +110,42 @@ class SAC_entropy:
             self.explorer.load()
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
+        """ softmax activation, Softmax layer results in NaN """
         observ = Input(shape=(observDim,), dtype=dtype, name="actor_in")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"actor_hidden_{ix}")(h)
-        actionProb = self.dense_or_batchNorm(
-                actionDim, "softmax", use_bias=True, trainable=trainable, name="actor_probability")(h)
+        logit = self.dense_or_batchNorm(actionDim, use_bias=True, trainable=trainable, name="actor_probability")(h)
+            #   actionProb = Softmax()(logit)
+        exps = tf.math.exp(logit)
+        sums = tf.reduce_sum(exps, axis=1, keepdims=True) + self.eps                    # eps to prevent NaN
+        actionProb = exps / sums    # softmax
 
         net = Model(inputs=observ, outputs=actionProb, name="actor")
         return net
 
     def get_actionProb_entropy(self, observ, withTarget=False):
-        actionProb = self.target_actor(observ) if withTarget else self.actor(observ)  # softmax; (batchSz,actionDim)
-        self.logger.debug(f"in get_action_logProb: prob={actionProb}")
-        logProb = tf.math.log(actionProb)                                             # (batchSz,actionDim)
-        entropy = tf.reduce_sum(-actionProb * logProb, axis=1, keepdims=True)         # (batchSz,1)
+        actionProb = self.target_actor(observ) if withTarget else self.actor(observ)    # softmax; (batchSz,actionDim)
+        self.logger.debug(f"in get_actionProb_entropy: actionProb={actionProb}")
+        logProb = tf.math.log(actionProb)                                               # (batchSz,actionDim)
+        entropy = tf.reduce_sum(-actionProb * logProb, axis=1, keepdims=True)           # (batchSz,1)
 
         return actionProb, entropy
 
-    def get_action(self, observ):
+    def get_action(self, observ, isStochastic=False):
         """
         Args:
             observ: shape=(observDim)
         """
         actionProb = self.actor(observ)  # softmax; (batchSz,actionDim)
-        """ 
-        # get action by sampling 
-        dist = tfp.distributions.Multinomial(total_count=1, probs=actionProb)         # batchSz distributions
-        action = dist.sample()              # one-hot vector; (batchSz,actionDim)
-        """
-        # get the action of max actionProb
-        maxIdx = tf.argmax(actionProb, axis=1)    # (batchSz)
-        action = tf.one_hot(maxIdx, self.actionDim, dtype=self.tfDtype)  # (batchSz,actionDim)
-            #   maxProb = tf.reduce_max(actionProb, axis=1, keepdims=True)    # (batchSz,1)
-        self.logger.debug(f"action={action}")
+        self.logger.debug(f"in get_action: actionProb={actionProb}")
+        if isStochastic: 
+            dist = tfp.distributions.Multinomial(total_count=1, probs=actionProb)         # batchSz distributions
+            action = dist.sample()              # one-hot vector; (batchSz,actionDim)
+        else:
+            maxIdx = tf.argmax(actionProb, axis=1)    # (batchSz)
+            action = tf.one_hot(maxIdx, self.actionDim, dtype=self.tfDtype)  # (batchSz,actionDim)
+                #   maxProb = tf.reduce_max(actionProb, axis=1, keepdims=True)    # (batchSz,1)
         return action
 
     def build_critic(self, observDim, observ_hiddenUnits, 
@@ -169,7 +173,7 @@ class SAC_entropy:
         net = Model(inputs=[observ_inputs, action_inputs], outputs=Q, name="critic")
         return net
 
-    def dense_or_batchNorm(self, units, activation, use_bias=True, trainable=True, name=None):
+    def dense_or_batchNorm(self, units, activation=None, use_bias=True, trainable=True, name=None):
         """
         Args:
             use_bias: False may be effective when outputs are symmetric
@@ -295,9 +299,9 @@ class SAC_entropy:
             action = actionCoder.encode(actionToEnv)
         else:
             observ = tf.convert_to_tensor(observ)
-            observ = tf.expand_dims(observ, axis=0) # (1,observDim) to input to net
-            action = self.get_action(observ)        # (1,actionDim) 
-            action = action[0]                      # (actionDim)
+            observ = tf.expand_dims(observ, axis=0)                     # (1,observDim) to input to net
+            action = self.get_action(observ, self.isActionStochastic)   # (1,actionDim) 
+            action = action[0]                                          # (actionDim)
         return action
 
     def isReadyToTrain(self):

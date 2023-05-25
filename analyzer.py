@@ -15,7 +15,7 @@ class Analyzer:
         self.rewards = []
         self.sumReward = 0
         self.sumReward_max = 0
-        self.sumReward_recent_maxlen = 4
+        self.sumReward_recent_maxlen = 3
         self.sumReward_recent = deque(maxlen=self.sumReward_recent_maxlen)    
         self.avgReward = 0
         self.losss0 = []

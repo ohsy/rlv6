@@ -65,7 +65,7 @@ class SAC_discrete:
         self.critic_lr = config["Critic_learningRate"]
         self.gamma = tf.Variable(config["RewardDiscountRate_gamma"], dtype=self.tfDtype) 
         self.alpha = tf.Variable(config["TemperatureParameter_alpha"], dtype=self.tfDtype)
-        self.epsilon = 1e-6  # added to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0 causing inf
+        self.eps = 1e-6  # tiny quentity added to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0 causing inf
         self.logStd_min = -13  # e**(-13) = 2.26e-06; for stds
         self.logStd_max = 1
 
@@ -120,7 +120,7 @@ class SAC_discrete:
     def get_actionProb_logActionProb(self, observ, withTarget=False):
         prob = self.target_actor(observ) if withTarget else self.actor(observ)  # (batchSz,actionDim)
         self.logger.debug(f"in get_actionProb_logActionProb:prob={prob}")
-        logProb = tf.math.log(prob + self.epsilon)                              # (batchSz,actionDim)
+        logProb = tf.math.log(prob + self.eps)                              # (batchSz,actionDim)
         return prob, logProb
 
     def build_critic(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
