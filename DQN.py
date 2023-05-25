@@ -3,7 +3,6 @@
 
 - Made from ./rl_tf1/dqn.py using TF2 and keras.
 cf. https://keras.io/examples/rl/deep_q_network_breakout/
-cf. https://github.com/KerasKorea/KEKOxTutorial/blob/master/134_Keras%20와%20Gym%20과%20함께하는%20Deep%20Q-Learning%20을%20향한%20여행.md
 cf. https://levelup.gitconnected.com/dqn-from-scratch-with-tensorflow-2-eb0541151049
 
 - Found actionDim is not 2 but 1 since it is set by nElements not by number of possible values.
@@ -14,7 +13,6 @@ cf. https://levelup.gitconnected.com/dqn-from-scratch-with-tensorflow-2-eb054115
     => Fixed: 
         reshape reward and done
 - Move run() to gym.
-
 - NodeCode is used.
 
 """
@@ -31,8 +29,8 @@ from tensorflow.keras.layers import Input, Dense, BatchNormalization
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
-from ReplayBuffer import ReplayBuffer, PERBuffer
-from Explorer import Explorer_epsilonDecay as Explorer
+from eeplaybuffer import ReplayBuffer, PERBuffer
+from explorer import Explorer_epsilonDecay as Explorer
 
 
 class DQN:
@@ -56,7 +54,6 @@ class DQN:
             self.replayBuffer = ReplayBuffer(config, self.npDtype, self.tfDtype, self.npIntDtype)
         self.memoryCapacity = config["MemoryCapacity"]
         self.memoryCnt_toStartTrain = self.config["MemoryRatio_toStartTrain"] * self.memoryCapacity
-        #   self.memoryCntToFillWithRandomAction = self.config["MemoryRatio_toFillWithRandomAction"] * self.memoryCapacity
 
         if self.isRewardNorm:
             # self.recentMemoryCapacity = self.memoryCapacity // 4
@@ -66,7 +63,7 @@ class DQN:
 
             self.reward_norm_steps = 200
             self.reward_mean = 1
-            # self.rewardNormalizationThreshold = 0.1  # begin reward normalization after replay buffer is filled over threshold
+            # self.rewardNormalizationThreshold = 0.1  # begin reward norm after buffer is filled over threshold
             self.rewardNormalizationThreshold = 0.7
 
         self.batchSz = config["BatchSize"]
@@ -76,8 +73,8 @@ class DQN:
 
         self.explorer = Explorer(mode, config, self.savePath) 
 
-        self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm layer in XXX_units list like [64,'bn',64]
-        hiddenUnits = config["DQN_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
+        self.batchNormInUnitsList = config["BatchNorm_inUnitsList"] # to represent batchNorm in X_units list like 'bn'
+        hiddenUnits = config["DQN_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
 
         if mode == "train":
             self.dqn = self.build_dqn(observDim, hiddenUnits, actionDim, self.tfDtype)
@@ -94,7 +91,7 @@ class DQN:
             self.explorer.load()
 
     def build_dqn(self, observDim, hiddenUnits, actionDim, dtype, trainable=True): 
-        observ = Input(shape=(observDim,), dtype=dtype, name="inputs")
+        observ = Input(shape=(observDim,), dtype=dtype, name="dqn_in")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "tanh", trainable=trainable, name=f"hidden_{ix}")(h)
@@ -136,27 +133,27 @@ class DQN:
         self.logger.debug(f"reward={reward}")
         self.logger.debug(f"done={done}")
         with tf.GradientTape() as tape:
-            target_Q = self.target_dqn(next_observ)                     # shape=(batchSz, actionDim)
+            target_Q = self.target_dqn(next_observ)                         # (batchSz, actionDim)
             self.logger.debug(f"next_observ={next_observ}")
             self.logger.debug(f"target_Q={target_Q}")
-            target_Q_max = tf.reduce_max(target_Q, axis=1, keepdims=True)          # max among actionDim Qs; shape=(batchSz,1)
+            target_Q_max = tf.reduce_max(target_Q, axis=1, keepdims=True)   # max among actionDim Qs; (batchSz,1)
             self.logger.debug(f"target_Q_max={target_Q_max}")
             self.logger.debug(f"reward={reward}")
             self.logger.debug(f"done={done}")
-            y = reward + (1.0 - done) * self.gamma * target_Q_max       # shape=(batchSz,1)
+            y = reward + (1.0 - done) * self.gamma * target_Q_max           # (batchSz,1)
             self.logger.debug(f"y={y}")
 
-            Q = self.dqn(observ)                                        # shape=(batchSz,actionDim)
+            Q = self.dqn(observ)                                            # (batchSz,actionDim)
             self.logger.debug(f"Q={Q}")
             self.logger.debug(f"action={action}")
-            action_th_Q = tf.reduce_sum(Q * action, axis=1, keepdims=True)      # action as mask; shape=(batchSz,1)
+            action_th_Q = tf.reduce_sum(Q * action, axis=1, keepdims=True)  # action as mask; (batchSz,1)
             self.logger.debug(f"action-th_Q={action_th_Q}")
-            td_error = tf.square(y - action_th_Q)                       # shape=(batchSz,1)
+            td_error = tf.square(y - action_th_Q)                           # (batchSz,1)
             self.logger.debug(f"td_error={td_error}")
             if self.isPER:
-                loss = tf.reduce_mean(importance_weights * td_error)    # shape=()
+                loss = tf.reduce_mean(importance_weights * td_error)        # ()
             else:
-                loss = tf.reduce_mean(td_error)                         # shape=()
+                loss = tf.reduce_mean(td_error)                             # ()
                 self.logger.debug(f"loss={loss}")
         grads = tape.gradient(loss, self.dqn.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.dqn.trainable_variables))
@@ -193,16 +190,17 @@ class DQN:
         if self.explorer.isReadyToExplore():
             actionToEnv = actionCoder.random_decoded()  # get a random actionToEnv
             action = actionCoder.encode(actionToEnv)
-            Q_max = 0  # dummy
+                #   Q_max = 0                           # dummy
         else:
             observ = tf.convert_to_tensor(observ)
-            observ = tf.expand_dims(observ, axis=0)  # shape=(1,observDim) to input to net
+            observ = tf.expand_dims(observ, axis=0)     # (1,observDim) to input to net
 
-            Qs = self.dqn(observ)  # shape=(1,actionDim) 
-            maxIdx = np.argmax(Qs, axis=1)[0]  # [0] gets 0th of batch. action is index of max Q among actionDim Qs. shape=()
-            action = np.array([1 if i == maxIdx else 0 for i in range(self.actionDim)])  # one-hot vector; shape=(actionDim)
-            Q_max = np.amax(Qs, axis=1)[0]  # [0] gets 0th of batch. max Q among actionDim Qs. scalar
-        #   return action, Q_max  # Q_max for monitoring
+            Qs = self.dqn(observ)                       # (1,actionDim) 
+            maxIdx = np.argmax(Qs, axis=1)              # (1)
+            maxIdx = maxIdx[0]                          # index of max Q among actionDim Qs; ()
+            action = np.array([1 if i == maxIdx else 0 for i in range(self.actionDim)])  # one-hot; (actionDim)
+                #   Q_max = np.amax(Qs, axis=1)[0]      # max Q among actionDim Qs; ()
+                #   return action, Q_max                # Q_max for monitoring
         return action
     
     def isReadyToTrain(self):
@@ -220,7 +218,7 @@ class DQN:
         self.logger.info(msg)
 
     def summary(self):
-        self.dqn.summary(print_fn=self.logger.info)  # to print in logger file
+        self.dqn.summary(print_fn=self.logger.info)     # to print in logger file
 
     def summaryWrite(self, key, value, step):
         with self.writer.as_default():

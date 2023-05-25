@@ -17,8 +17,8 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
-from ReplayBuffer import ReplayBuffer, PERBuffer
-from Explorer import Explorer_replayBufferFiller as Explorer
+from replaybuffer import ReplayBuffer, PERBuffer
+from explorer import Explorer_replayBufferFiller as Explorer
 
 
 class SAC:
@@ -52,7 +52,7 @@ class SAC:
 
             self.reward_norm_steps = 200
             self.reward_mean = 1
-            # self.rewardNormalizationThreshold = 0.1  # begin reward normalization after replay memory is filled over threshold
+            # self.rewardNormalizationThreshold = 0.1  # begin reward norm after buffer is filled over threshold
             self.rewardNormalizationThreshold = 0.7
 
         self.batchSz = config["BatchSize"]
@@ -67,25 +67,30 @@ class SAC:
 
         self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer) 
 
-        self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm layer in XXX_units list like [64,'bn',64]
-        actor_hiddenUnits = config["Actor_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
+        self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm in X_units list like 'bn'
+        actor_hiddenUnits = config["Actor_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
         observ_hiddenUnits = config["Critic_observationBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
-        action_hiddenUnits = config["Critic_actionBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
+        action_hiddenUnits = config["Critic_actionBlock_hiddenUnits"]       # like [64, 'bn', 64], 'bn' for BatchNorm
         concat_hiddenUnits = config["Critic_concatenateBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
 
         if mode == "train":
             self.actor = self.build_actor(observDim, actor_hiddenUnits, actionDim, self.tfDtype)
-            self.critic1 = self.build_critic(observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype)
+            self.critic1 = self.build_critic(
+                    observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype)
             self.target_critic1 = self.build_critic(
-                    observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype, trainable=False)
+                    observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype, 
+                    trainable=False)
             self.actor_optimizer = Adam(self.actor_lr)
             self.critic1_optimizer = Adam(self.critic_lr)
             if self.isTargetActor:
-                self.target_actor = self.build_actor(observDim, actor_hiddenUnits, actionDim, self.tfDtype, trainable=False)
+                self.target_actor = self.build_actor(
+                        observDim, actor_hiddenUnits, actionDim, self.tfDtype, trainable=False)
             if self.isCritic2:
-                self.critic2 = self.build_critic(observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype)
+                self.critic2 = self.build_critic(
+                        observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype)
                 self.target_critic2 = self.build_critic(
-                        observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype, trainable=False)
+                        observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype, 
+                        trainable=False)
                 self.critic2_optimizer = Adam(self.critic_lr)
         elif mode == "test": 
             self.actor = load_model(f"{self.savePath}/actor/")
@@ -107,7 +112,7 @@ class SAC:
             self.explorer.load()
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=dtype, name="actor_inputs")
+        observ = Input(shape=(observDim,), dtype=dtype, name="actor_in")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"actor_hidden_{ix}")(h)
@@ -115,33 +120,34 @@ class SAC:
         logStd = self.dense_or_batchNorm(actionDim, "linear", trainable=trainable, name="actor_logStd")(h)
 
         net = Model(inputs=observ, outputs=[mean, logStd], name="actor")
-        net.compile(optimizer=Adam(learning_rate=self.actor_lr))  # NOTE: without this save() saves one outputs instead of mean and logStd
+        net.compile(optimizer=Adam(learning_rate=self.actor_lr)) # wo this save() saves one outputs; not mean & logStd
         #   net.compile()  # NOTE: without this save() saves one outputs instead of mean and logStd; not working??
         return net
 
     def get_action_logProb(self, observ, withTarget=False):
-        mean, logStd = self.target_actor(observ) if withTarget else self.actor(observ)  # each shape=(batchSz,actionDim)
-        logStd = tf.clip_by_value(logStd, self.logStd_min, self.logStd_max)             # shape=(batchSz,actionDim)
-        std = tf.exp(logStd)                                                            # shape=(batchSz,actionDim)
+        mean, logStd = self.target_actor(observ) if withTarget else self.actor(observ)  # each (batchSz,actionDim)
+        logStd = tf.clip_by_value(logStd, self.logStd_min, self.logStd_max)             # (batchSz,actionDim)
+        std = tf.exp(logStd)                                                            # (batchSz,actionDim)
 
         dist = tfp.distributions.Normal(mean, std)                                      # batchSz distributions
-        actionSampled = dist.sample()                                                   # shape=(batchSz,actionDim)
-        action = tf.tanh(actionSampled) # squashing to be in (-1,1)                     # shape=(batchSz,actionDim)
+        actionSampled = dist.sample()                                                   # (batchSz,actionDim)
+        action = tf.tanh(actionSampled) # squashing to be in (-1,1)                     # (batchSz,actionDim)
 
-        logProb_of_actionSampled = dist.log_prob(actionSampled)                         # shape=(batchSz,actionDim)
-        logProb = logProb_of_actionSampled - tf.math.log(1 - action**2 + self.epsilon)  # logProb of action. cf. eq.(21) of 2018 SAC paper
-        logProb = tf.reduce_sum(logProb, axis=1, keepdims=True)  # sum over multiple action parameters; shape=(batchSz,1)
+        logProb_of_actionSampled = dist.log_prob(actionSampled)                         # (batchSz,actionDim)
+        logProb = logProb_of_actionSampled - tf.math.log(1 - action**2 + self.epsilon)  # logProb of action. 
+                                                                                        # cf. eq.(21) of 2018 SAC paper
+        logProb = tf.reduce_sum(logProb, axis=1, keepdims=True)  # sum over multiple action parameters; (batchSz,1)
 
         return action, logProb
 
     def build_critic(self, observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, dtype, trainable=True):
-        observ_inputs = Input(shape=(observDim,), dtype=dtype, name="critic_observ_inputs")
+        observ_inputs = Input(shape=(observDim,), dtype=dtype, name="critic_observ_in")
         h = observ_inputs
         for ix, units in enumerate(observ_hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"critic_observ_hidden_{ix}")(h)
         observ_outputs = h
 
-        action_inputs = Input(shape=(actionDim,), dtype=dtype, name="critic_action_inputs")
+        action_inputs = Input(shape=(actionDim,), dtype=dtype, name="critic_action_in")
         h = action_inputs
         for ix, units in enumerate(action_hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"critic_action_hidden_{ix}")(h)
@@ -152,7 +158,7 @@ class SAC:
         h = concat_inputs
         for ix, units in enumerate(concat_hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"critic_concat_hidden_{ix}")(h)
-        Q = self.dense_or_batchNorm(1, "linear", trainable=trainable, name="critic_outputs")(h)
+        Q = self.dense_or_batchNorm(1, "linear", trainable=trainable, name="critic_out")(h)
 
         net = Model(inputs=[observ_inputs, action_inputs], outputs=Q, name="critic")
         return net
@@ -181,15 +187,15 @@ class SAC:
     def update_actor(self, observ):
         """ Args: observ: shape=(batchSz,observDim) """
         with tf.GradientTape() as tape:
-            action, logProb = self.get_action_logProb(observ)   # action, logProb: shape=(batchSz,1)
-            Q1 = self.critic1([observ, action])                 # shape=(batchSz,1)
+            action, logProb = self.get_action_logProb(observ)   # each (batchSz,1)
+            Q1 = self.critic1([observ, action])                 # (batchSz,1)
             if self.isCritic2:
-                Q2 = self.critic2([observ, action])             # shape=(batchSz,1)
-                Q_min = tf.minimum(Q1, Q2)                      # shape=(batchSz,1)
-                Q_soft = Q_min - self.alpha * logProb           # shape=(batchSz,1)
+                Q2 = self.critic2([observ, action])             # (batchSz,1)
+                Q_min = tf.minimum(Q1, Q2)                      # (batchSz,1)
+                Q_soft = Q_min - self.alpha * logProb           # (batchSz,1)
             else:
-                Q_soft = Q1 - self.alpha * logProb              # shape=(batchSz,1)
-            actor_loss = -tf.reduce_mean(Q_soft)                # shape=()
+                Q_soft = Q1 - self.alpha * logProb              # (batchSz,1)
+            actor_loss = -tf.reduce_mean(Q_soft)                # ()
 
         actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
@@ -203,31 +209,31 @@ class SAC:
             done, reward: shape=(batchSz,1)
         """
         with tf.GradientTape(persistent=True) as tape:
-            next_action, next_logProb = self.get_action_logProb(next_observ, withTarget=self.isTargetActor) # shape=(batchSz,1)
-            target_Q1 = self.target_critic1([next_observ, next_action]) # shape=(batchSz,1)
+            next_action, next_logProb = self.get_action_logProb(next_observ, withTarget=self.isTargetActor) # (batchSz,1)
+            target_Q1 = self.target_critic1([next_observ, next_action])     # (batchSz,1)
             if self.isCritic2:
-                target_Q2 = self.target_critic2([next_observ, next_action]) # shape=(batchSz,1)
-                target_Q_min = tf.minimum(target_Q1, target_Q2)             # shape=(batchSz,1)
-                target_Q_soft = target_Q_min - self.alpha * next_logProb    # shape=(batchSz,1)
-                y = reward + (1.0 - done) * self.gamma * target_Q_soft      # shape=(batchSz,1)
-                Q2 = self.critic2([observ, action])                         # shape=(batchSz,1)
-                td_error2 = tf.square(y - Q2)                               # shape=(batchSz,1)
+                target_Q2 = self.target_critic2([next_observ, next_action]) # (batchSz,1)
+                target_Q_min = tf.minimum(target_Q1, target_Q2)             # (batchSz,1)
+                target_Q_soft = target_Q_min - self.alpha * next_logProb    # (batchSz,1)
+                y = reward + (1.0 - done) * self.gamma * target_Q_soft      # (batchSz,1)
+                Q2 = self.critic2([observ, action])                         # (batchSz,1)
+                td_error2 = tf.square(y - Q2)                               # (batchSz,1)
                 td_error2 = importance_weights * td_error2 if self.isPER else td_error2
-                critic2_loss = tf.reduce_mean(td_error2)                    # shape=()
+                critic2_loss = tf.reduce_mean(td_error2)                    # ()
             else:
-                target_Q_soft = target_Q1 - self.alpha * next_logProb       # shape=(batchSz,1)
-                y = reward + (1.0 - done) * self.gamma * target_Q_soft      # shape=(batchSz,1)
-            Q1 = self.critic1([observ, action])                             # shape=(batchSz,1)
-            td_error1 = tf.square(y - Q1)                                   # shape=(batchSz,1)
+                target_Q_soft = target_Q1 - self.alpha * next_logProb       # (batchSz,1)
+                y = reward + (1.0 - done) * self.gamma * target_Q_soft      # (batchSz,1)
+            Q1 = self.critic1([observ, action])                             # (batchSz,1)
+            td_error1 = tf.square(y - Q1)                                   # (batchSz,1)
             td_error1 = importance_weights * td_error1 if self.isPER else td_error1
-            critic1_loss = tf.reduce_mean(td_error1)                        # shape=()
+            critic1_loss = tf.reduce_mean(td_error1)                        # ()
 
         critic1_grads = tape.gradient(critic1_loss, self.critic1.trainable_variables)
         self.critic1_optimizer.apply_gradients(zip(critic1_grads, self.critic1.trainable_variables))
         if self.isCritic2:
             critic2_grads = tape.gradient(critic2_loss, self.critic2.trainable_variables)
             self.critic2_optimizer.apply_gradients(zip(critic2_grads, self.critic2.trainable_variables))
-                #   td_error = tf.minimum(td_error1, td_error2)                     # for monitoring; shape=(batchSz,1)
+                #   td_error = tf.minimum(td_error1, td_error2)                     # for monitoring; (batchSz,1)
             return critic1_loss, td_error1, critic2_loss
         else:
             return critic1_loss, td_error1
@@ -272,17 +278,18 @@ class SAC:
     def act(self, observ, actionCoder):
         """
         Args:
-            observ: 1d ndarray
+            observ: shape=(observDim)
         return:
-            action: 1d ndarray
+            action: shape=(actionDim)
         """
         if self.explorer.isReadyToExplore():
             actionToEnv = actionCoder.random_decoded()
             action = actionCoder.encode(actionToEnv)
         else:
             observ = tf.convert_to_tensor(observ)
-            observ = tf.expand_dims(observ, axis=0)  # shape=(1,observDim) to input to net
-            action = self.get_action_logProb(observ)[0][0]  # returns ([action], [logProb]); [action] shape=(batchSz,actionDim)
+            observ = tf.expand_dims(observ, axis=0)         # (1,observDim) to input to net
+            action, _ = self.get_action_logProb(observ)     # (batchSz,actionDim)
+            action = action[0]                              # (actionDim)
         return action
 
     def isReadyToTrain(self):
@@ -306,8 +313,8 @@ class SAC:
         self.logger.info(msg)
 
     def summary(self):
-        self.actor.summary(print_fn=self.logger.info)  # to print in logger file
-        self.critic1.summary(print_fn=self.logger.info)  # to print in logger file
+        self.actor.summary(print_fn=self.logger.info)       # to print in logger file
+        self.critic1.summary(print_fn=self.logger.info)     # to print in logger file
         
     def summaryWrite(self, key, value, step):
         with self.writer.as_default():

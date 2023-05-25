@@ -1,44 +1,6 @@
 
 import numpy as np
-
-class Coder:
-    observCoder : NodeCoder
-    actionCoder : NodeCoder
-
-    @classmethod
-    def experienceFrom(cls, observFrEnv, actionToEnv, reward, next_observFrEnv, done, npDtype):
-        observ = cls.observCoder.encode(observFrEnv)
-        next_observ = cls.observCoder.encode(next_observFrEnv)
-        action = cls.actionCoder.encode(actionToEnv)    # actionToEnv: scalar, action: node_vector
-        ex = (
-                np.array(observ, dtype=npDtype),        # already ndarray but change dtype
-                np.array(action, dtype=npDtype),        # already ndarray but change dtype 
-                np.array([reward], dtype=npDtype),      # scalar to ndarray of dtype
-                np.array(next_observ, dtype=npDtype),   # already ndarray but change dtype  
-                np.array([done], dtype=npDtype)         # bool to ndarray of dtype
-        )
-        return ex
-
-
-class Coder_CartPole_v1(Coder):
-    """ 
-    observation: Cart Position, Cart Velocity, Pole Angle, Pole Angular Velocity 
-    action: 0 for Push cart to the left, 1 for Push cart to the right
-    """
-    observCoder = NodeCoder(nNodes=[1,1,1,1],
-                           low=[-4.8, np.finfo(np.float32).min / 2, -0.418, np.finfo(np.float32).min / 2],
-                           high=[4.8, np.finfo(np.float32).max / 2, 0.418, np.finfo(np.float32).max / 2], scaleshift=None)
-    actionCoder = NodeCoder(nNodes=[2], possibles=[[0,1]], scaleshift=None, isDecodedScalar=True)
-
-
-class Coder_Pendulum_v1(Coder):
-    """ 
-    observation: x=cos(theta), y=sin(theta), Angular Velocity
-    action: torque
-    """
-    observCoder = NodeCoder(nNodes=[1,1,1], low=[-1, -1, -8], high=[1,1,8], scaleshift=None)
-    actionCoder = NodeCoder(nNodes=[1], low=[-2], high=[2], scaleshift=None)
-
+import random
 
 """
 2023.05.12
@@ -62,7 +24,6 @@ class Coder_Pendulum_v1(Coder):
     A continuous parameter has a number value in the range ('low', 'high') like Box of Gym Environment.
     A discrete parameter has an number value among a list of 'possibles' like Discrete of Gym Environment.
 """
-import random
 
 class NodeCoder:
     def __init__(self, nNodes=None, low=None, high=None, scaleshift=None, possibles=None, isDecodedScalar=False):
@@ -167,4 +128,45 @@ class NodeCoder:
             #   print(f"vec={vec}")
 
         return vec
+
+
+class Coder:
+    """ 
+    encode: neuralnet side => environment side 
+    decode: environment side => neuralnet side 
+    """
+    observCoder : NodeCoder
+    actionCoder : NodeCoder
+
+    @classmethod
+    def experienceFrom(cls, observFrEnv, actionToEnv, reward, next_observFrEnv, done, npDtype):
+        observ = cls.observCoder.encode(observFrEnv)
+        next_observ = cls.observCoder.encode(next_observFrEnv)
+        action = cls.actionCoder.encode(actionToEnv)    # actionToEnv: scalar, action: node_vector
+        ex = (
+                np.array(observ, dtype=npDtype),        # already ndarray but change dtype
+                np.array(action, dtype=npDtype),        # already ndarray but change dtype 
+                np.array([reward], dtype=npDtype),      # scalar to ndarray of dtype
+                np.array(next_observ, dtype=npDtype),   # already ndarray but change dtype  
+                np.array([done], dtype=npDtype)         # bool to ndarray of dtype
+        )
+        return ex
+
+class Coder_CartPole_v1(Coder):
+    """ 
+    observation: Cart Position, Cart Velocity, Pole Angle, Pole Angular Velocity 
+    action: 0 for Push cart to the left, 1 for Push cart to the right
+    """
+    observCoder = NodeCoder(nNodes=[1,1,1,1],
+                           low=[-4.8, np.finfo(np.float32).min / 2, -0.418, np.finfo(np.float32).min / 2],
+                           high=[4.8, np.finfo(np.float32).max / 2, 0.418, np.finfo(np.float32).max / 2], scaleshift=None)
+    actionCoder = NodeCoder(nNodes=[2], possibles=[[0,1]], scaleshift=None, isDecodedScalar=True)
+
+class Coder_Pendulum_v1(Coder):
+    """ 
+    observation: x=cos(theta), y=sin(theta), Angular Velocity
+    action: torque
+    """
+    observCoder = NodeCoder(nNodes=[1,1,1], low=[-1, -1, -8], high=[1,1,8], scaleshift=None)
+    actionCoder = NodeCoder(nNodes=[1], low=[-2], high=[2], scaleshift=None)
 
