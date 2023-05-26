@@ -2,28 +2,44 @@
 import time
 from collections import deque
 
+from enum import Enum
+class TargetToMonitor(Enum):
+    sumReward = 'sumReward'
+    avgReward = 'avgReward'
+
 class Analyzer:
     status_train = "train"
-    status_preTrain = "preTr"  # preparing train
+    status_preTrain = "preTr"       # preparing train
+    targetToMonitor: TargetToMonitor 
 
-    def __init__(self, config, logger):
+    def __init__(self, envName, config, logger, sumReward_recent_maxlen=3):
+        self.envName = envName
         self.logger = logger
-        self.sumReward_toStopTrain = config["SumReward_toStopTrain"]
-        self.avgReward_toStopTrain = config["AvgReward_toStopTrain"]
         self.status = self.status_preTrain  
         self.preStatus = None
         self.rewards = []
         self.sumReward = 0
         self.sumReward_max = 0
-        self.sumReward_recent_maxlen = 3
+        self.sumReward_recent_maxlen = sumReward_recent_maxlen
         self.sumReward_recent = deque(maxlen=self.sumReward_recent_maxlen)    
         self.avgReward = 0
         self.losss0 = []
         self.losss1 = []
         self.trainCnt = 0
         self.timeBeforeEpisode = None
-        self.envName: str
-        
+
+        env_config = config[self.envName]
+        self.targetToMonitor = TargetToMonitor(env_config["targetToMonitor"])
+        self.sumReward_toStopTrain = env_config["sumReward_toStopTrain"]
+        self.avgReward_toStopTrain = env_config["avgReward_toStopTrain"]
+
+    def beforeMainLoop(self):
+        self.timeBeforeMainLoop = time.time()
+
+    def afterMainLoop(self):
+        tm = time.time() - self.timeBeforeMainLoop
+        self.logger.info(f"time for main loop ={tm:.3f}sec")
+
     def beforeEpisode(self):
         self.rewards = []
         self.losss0 = []
@@ -60,32 +76,23 @@ class Analyzer:
         self.sumReward_max = self.sumReward if self.sumReward > self.sumReward_max else self.sumReward_max
         self.avgReward = self.sumReward / len(self.rewards)  # NOTE: sumReward != return as gamma is not applied
         msg = f"({self.status}) episode {episodeCnt}: {tm:.3f}sec" 
-        msg += f", avg_loss0: {avg_loss0:.3f}" 
-        msg += f", avg_loss1: {avg_loss1:.3f}" if len(self.losss1) > 0 else ""
-        if self.envName == "CartPole_v1":
+        msg += f", avg_loss0: {avg_loss0:.3f}"                                  # critic if actor-critic
+        msg += f", avg_loss1: {avg_loss1:.3f}" if len(self.losss1) > 0 else ""  # actor if actor-critic
+        if self.targetToMonitor == TargetToMonitor.sumReward:
             msg += f", sumReward: {self.sumReward:.3f}, sumReward_max: {self.sumReward_max:.3f}" 
-        elif self.envName == "Pendulum_v1":
+            agent.summaryWrite("sumReward", self.sumReward, step=episodeCnt)
+        elif self.targetToMonitor == TargetToMonitor.avgReward:
             msg += f", avgReward: {self.avgReward:.3f}" 
+            agent.summaryWrite("avgReward", self.avgReward, step=episodeCnt)
         msg += f", epsilon: {agent.explorer.epsilon:.3f}" if hasattr(agent.explorer,"epsilon") else ""
         self.logger.info(msg)
-        agent.summaryWrite("sumReward", self.sumReward, step=episodeCnt)
-        agent.summaryWrite("avgReward", self.avgReward, step=episodeCnt)
 
     def isTrainedEnough(self):
-        pass
-
-class Analyzer_CartPole_v1(Analyzer):
-    def __init__(self, config, logger):
-        super().__init__(config, logger)
-        self.envName = "CartPole_v1"
-    def isTrainedEnough(self):
-        self.sumReward_recent_mean = sum(self.sumReward_recent) / self.sumReward_recent_maxlen
-        return self.sumReward_recent_mean > self.sumReward_toStopTrain
-
-class Analyzer_Pendulum_v1(Analyzer):
-    def __init__(self, config, logger):
-        super().__init__(config, logger)
-        self.envName = "Pendulum_v1"
-    def isTrainedEnough(self):
-        return self.avgReward > self.avgReward_toStopTrain
+        if self.targetToMonitor == TargetToMonitor.sumReward:
+            self.sumReward_recent_mean = sum(self.sumReward_recent) / self.sumReward_recent_maxlen
+            return self.sumReward_recent_mean > self.sumReward_toStopTrain
+        elif self.targetToMonitor == TargetToMonitor.avgReward:
+            return self.avgReward > self.avgReward_toStopTrain
+        else:
+            return False
 

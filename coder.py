@@ -135,38 +135,33 @@ class Coder:
     encode: neuralnet side => environment side 
     decode: environment side => neuralnet side 
     """
-    observCoder : NodeCoder
-    actionCoder : NodeCoder
+    def __init__(self, envName, config, logger):
+        self.logger = logger
+        observ_config = config[envName]["observ"]
+        action_config = config[envName]["action"]
+        self.observCoder = NodeCoder(nNodes = observ_config["nNodes"], 
+                                     low = observ_config["low"], 
+                                     high = observ_config["high"], 
+                                     possibles = observ_config["possibles"], 
+                                     scaleshift = observ_config["scaleshift"], 
+                                     isDecodedScalar = observ_config["isDecodedScalar"])
+        self.actionCoder = NodeCoder(nNodes = action_config["nNodes"], 
+                                     low = action_config["low"], 
+                                     high = action_config["high"], 
+                                     possibles = action_config["possibles"], 
+                                     scaleshift = action_config["scaleshift"], 
+                                     isDecodedScalar = action_config["isDecodedScalar"])
 
-    @classmethod
-    def experienceFrom(cls, observFrEnv, actionToEnv, reward, next_observFrEnv, done, npDtype):
-        observ = cls.observCoder.encode(observFrEnv)
-        next_observ = cls.observCoder.encode(next_observFrEnv)
-        action = cls.actionCoder.encode(actionToEnv)    # actionToEnv: scalar, action: node_vector
+    def experienceFrom(self, observFrEnv, actionToEnv, reward, next_observFrEnv, done, npDtype):
+        observ = self.observCoder.encode(observFrEnv)
+        next_observ = self.observCoder.encode(next_observFrEnv)
+        action = self.actionCoder.encode(actionToEnv)    # actionToEnv: scalar, action: node_vector
         ex = (
-                np.array(observ, dtype=npDtype),        # already ndarray but change dtype
-                np.array(action, dtype=npDtype),        # already ndarray but change dtype 
+                np.array(observ, dtype=npDtype),        # (observDim)
+                np.array(action, dtype=npDtype),        # (actionDim)
                 np.array([reward], dtype=npDtype),      # scalar to ndarray of dtype
-                np.array(next_observ, dtype=npDtype),   # already ndarray but change dtype  
+                np.array(next_observ, dtype=npDtype),   # (observDim)
                 np.array([done], dtype=npDtype)         # bool to ndarray of dtype
         )
         return ex
-
-class Coder_CartPole_v1(Coder):
-    """ 
-    observation: Cart Position, Cart Velocity, Pole Angle, Pole Angular Velocity 
-    action: 0 for Push cart to the left, 1 for Push cart to the right
-    """
-    observCoder = NodeCoder(nNodes=[1,1,1,1],
-                           low=[-4.8, np.finfo(np.float32).min / 2, -0.418, np.finfo(np.float32).min / 2],
-                           high=[4.8, np.finfo(np.float32).max / 2, 0.418, np.finfo(np.float32).max / 2], scaleshift=None)
-    actionCoder = NodeCoder(nNodes=[2], possibles=[[0,1]], scaleshift=None, isDecodedScalar=True)
-
-class Coder_Pendulum_v1(Coder):
-    """ 
-    observation: x=cos(theta), y=sin(theta), Angular Velocity
-    action: torque
-    """
-    observCoder = NodeCoder(nNodes=[1,1,1], low=[-1, -1, -8], high=[1,1,8], scaleshift=None)
-    actionCoder = NodeCoder(nNodes=[1], low=[-2], high=[2], scaleshift=None)
 

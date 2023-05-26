@@ -20,19 +20,19 @@
     "SummaryWriterPath"                 : "./summarywriter",
     "NumOfEpisodes_toTrain"             : 10000, 
     "NumOfEpisodes_train_comment"       : "10000 for cartpoleV1", 
-    "SumReward_toStopTrain"             : 200,
-    "SumReward_toStopTrain_comment"     : "for cartpoleV1.",
-    "AvgReward_toStopTrain"             : -0.005,
-    "AvgReward_toStopTrain_comment"     : "-0.001 for pendulumV1",
+    "#  SumReward_toStopTrain"          : 200,
+    "#  #   SumReward_toStopTrain"      : "for cartpoleV1.",
+    "#  AvgReward_toStopTrain"          : -0.005,
+    "#  #   AvgReward_toStopTrain"      : "-0.001 for pendulumV1",
     "NumOfEpisodes_toTest"              : 3,
     "Period_toSaveModels"               : 100,
-    "Period_toSaveModels_comment"       : "100 for cartpoleV1, in number of episodes",
+    "#  Period_toSaveModels"            : "100 for cartpoleV1, in number of episodes",
     "BatchSize"                         : 64, 
     "DQN_learningRate"                  : 0.00025,
     "Actor_learningRate"                : 0.0003,
-    "Actor_learningRate_comment"        : "0.0003 in general",
+    "#  Actor_learningRate"             : "0.0003 in general",
     "Critic_learningRate"               : 0.0006,
-    "Critic_learningRate_comment"       : "0.0006 in general",
+    "#  Critic_learningRate"            : "0.0006 in general",
 
     "TargetActor"                       : false,
     "Critic2"                           : true,
@@ -40,7 +40,7 @@
     "PER"                               : false,
     "MemoryCapacity"                    : 10000,
     "MemoryRatio_toStartTrain"          : 0.001, 
-    "MemoryRatio_toStartTrain_comment"  : "0.5 for cartpoleV1, start train after filling replay buffer with random actions",
+    "#  MemoryRatio_toStartTrain"       : "0.5 for cartpoleV1, start train after filling replay buffer with random actions",
     "MemoryRatio_toFillWithRandomAction": 0.5, 
     "SoftUpdateRate_tau"                : 0.003, 
     "RewardDiscountRate_gamma"          : 0.99,
@@ -50,8 +50,72 @@
     "EpsilonMin_comment"                : "0.01 in general",
     "EpsilonLambda"                     : 0.0001,
     "TemperatureParameter_alpha"        : 0.06,
-    "TemperatureParameter_alpha_comment": "0.06 for SAC, SAC_discrete, 5.0 for SAC_entropy",
+    "#  TemperatureParameter_alpha"     : "0.06 for SAC, SAC_discrete, 5.0 for SAC_entropy",
     "SAC_entropy_isActionStochastic"    : false,
 
-    "ending"                            : true
+    "CartPole_v1"                       : { 
+        "observ": {
+            "nNodes": [1,1,1,1],
+            "low": [-4.8, -1e+38, -0.418, -1e+38],
+            "high": [4.8, 1e+38, 0.418, 1e+38],
+            "possibles": [],
+            "scaleshift": null, 
+            "isDecodedScalar": false
+        },
+        "action": {
+            "nNodes": [2],
+            "low": [],
+            "high": [],
+            "possibles": [[0,1]],
+            "scaleshift": null, 
+            "isDecodedScalar": true
+        },
+        "targetToMonitor": "sumReward", 
+        "sumReward_toStopTrain" : 200, 
+        "avgReward_toStopTrain" : 0
+    },
+    "Pendulum_v1"                       : { 
+        "observ": {
+            "nNodes": [1,1,1],
+            "low": [-1, -1, -8],
+            "high": [1,1,8],
+            "possibles": [],
+            "scaleshift": null, 
+            "isDecodedScalar": false
+        },
+        "action": {
+            "nNodes": [1],
+            "low": [-2],
+            "high": [2],
+            "possibles": [],
+            "scaleshift": null, 
+            "isDecodedScalar": false
+        },
+        "targetToMonitor": "avgReward", 
+        "sumReward_toStopTrain" : 0,
+        "avgReward_toStopTrain" : -0.005
+    },
+    "LunarLander_v2"                    : { 
+        "observ": {
+            "nNodes": [1,1,1,1,1,1,1,1],
+            "low": [-90,-90,-5,-5,-3.1415927,-5,-0,-0], 
+            "high": [90,90,5,5,3.1415927,5,1,1],
+            "possibles": [],
+            "scaleshift": null, 
+            "isDecodedScalar": false
+        },
+        "action": {
+            "nNodes": [4],
+            "low": [],
+            "high": [],
+            "possibles": [[0,1,2,3]],
+            "scaleshift": null, 
+            "isDecodedScalar": true
+        },
+        "targetToMonitor": "sumReward", 
+        "sumReward_toStopTrain" : 200,
+        "avgReward_toStopTrain" : 0
+    },
+
+    "#  ending"                         : true
 }

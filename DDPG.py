@@ -59,14 +59,14 @@ from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
 from replaybuffer import ReplayBuffer, PERBuffer
-from explorer import Explorer_replayBufferFiller as Explorer
+from importlib import import_module
 
 
 class DDPG:
-    def __init__(self, mode, config, logger, observDim, actionDim):
+    def __init__(self, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
+        self.mode = mode  # config["Mode"]
         self.config = config
         self.logger = logger
-        self.mode = mode  # config["Mode"]
         self.npDtype = np.dtype(config["dtype"])
         self.tfDtype = tf.convert_to_tensor(np.zeros((1,), dtype=self.npDtype)).dtype  # tf doesn't have dtype()
         self.npIntDtype = np.dtype(config["intdtype"])
@@ -83,7 +83,12 @@ class DDPG:
         else:
             self.replayBuffer = ReplayBuffer(config, self.npDtype, self.tfDtype, self.npIntDtype)
         self.memoryCapacity = config["MemoryCapacity"]
-        self.memoryCnt_toStartTrain = self.config["MemoryRatio_toStartTrain"] * self.memoryCapacity
+
+        explorerModule = import_module(f"explorer")
+        Explorer = getattr(explorerModule, f"Explorer_{explorer}")
+        self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer)
+        self.logger.info(f"explorer={explorer}")
+        self.memoryCnt_toStartTrain = self.explorer.get_memoryCnt_toStartTrain()
 
         if self.isRewardNorm:
             # self.recentMemoryCapacity = self.memoryCapacity // 4
@@ -101,7 +106,6 @@ class DDPG:
         self.actor_lr = config["Actor_learningRate"]
         self.critic_lr = config["Critic_learningRate"]
         self.gamma = tf.Variable(config["RewardDiscountRate_gamma"], dtype=self.tfDtype)
-        self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer)
 
         self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm in X_units list like 'bn'
         actor_hiddenUnits = config["Actor_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm

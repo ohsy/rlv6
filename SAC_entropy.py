@@ -18,14 +18,14 @@ from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
 from replaybuffer import ReplayBuffer, PERBuffer
-from explorer import Explorer_epsilonDecay as Explorer
+from importlib import import_module
 
 
 class SAC_entropy:
-    def __init__(self, mode, config, logger, observDim, actionDim):
+    def __init__(self, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
+        self.mode = mode  # config["Mode"]
         self.config = config
         self.logger = logger
-        self.mode = mode  # config["Mode"]
         self.npDtype = np.dtype(config["dtype"])
         self.tfDtype = tf.convert_to_tensor(np.zeros((1,), dtype=self.npDtype)).dtype  # tf doesn't have dtype()
         self.npIntDtype = np.dtype(config["intdtype"])
@@ -44,7 +44,12 @@ class SAC_entropy:
         else:
             self.replayBuffer = ReplayBuffer(config, self.npDtype, self.tfDtype, self.npIntDtype)
         self.memoryCapacity = config["MemoryCapacity"]
-        self.memoryCnt_toStartTrain = self.config["MemoryRatio_toStartTrain"] * self.memoryCapacity
+
+        explorerModule = import_module(f"explorer")
+        Explorer = getattr(explorerModule, f"Explorer_{explorer}")
+        self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer)
+        self.logger.info(f"explorer={explorer}")
+        self.memoryCnt_toStartTrain = self.explorer.get_memoryCnt_toStartTrain()
 
         if self.isRewardNorm:
             # self.recentMemoryCapacity = self.memoryCapacity // 4
@@ -65,8 +70,6 @@ class SAC_entropy:
         self.alpha = tf.Variable(config["TemperatureParameter_alpha"], dtype=self.tfDtype)
         self.alpha = 5.0  # TEMP
         self.eps = 1e-6  # tiny quentity added to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0 causing inf
-
-        self.explorer = Explorer(mode, config, self.savePath)
 
         self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm in XXX_units list 'bn'
         actor_hiddenUnits = config["Actor_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm

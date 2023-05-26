@@ -29,12 +29,12 @@ from tensorflow.keras.layers import Input, Dense, BatchNormalization
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
-from eeplaybuffer import ReplayBuffer, PERBuffer
-from explorer import Explorer_epsilonDecay as Explorer
+from replaybuffer import ReplayBuffer, PERBuffer
+from importlib import import_module
 
 
 class DQN:
-    def __init__(self, mode, config, logger, observDim, actionDim):
+    def __init__(self, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
         self.config = config
         self.logger = logger
         self.mode = mode  # config["Mode"]
@@ -53,7 +53,12 @@ class DQN:
         else:
             self.replayBuffer = ReplayBuffer(config, self.npDtype, self.tfDtype, self.npIntDtype)
         self.memoryCapacity = config["MemoryCapacity"]
-        self.memoryCnt_toStartTrain = self.config["MemoryRatio_toStartTrain"] * self.memoryCapacity
+
+        explorerModule = import_module(f"explorer") 
+        Explorer = getattr(explorerModule, f"Explorer_{explorer}")  # class
+        self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer) 
+        self.logger.info(f"explorer={explorer}")
+        self.memoryCnt_toStartTrain = self.explorer.get_memoryCnt_toStartTrain()
 
         if self.isRewardNorm:
             # self.recentMemoryCapacity = self.memoryCapacity // 4
@@ -70,8 +75,6 @@ class DQN:
         self.tau = config["SoftUpdateRate_tau"] 
         self.gamma = config["RewardDiscountRate_gamma"] 
         self.lr = config["DQN_learningRate"]
-
-        self.explorer = Explorer(mode, config, self.savePath) 
 
         self.batchNormInUnitsList = config["BatchNorm_inUnitsList"] # to represent batchNorm in X_units list like 'bn'
         hiddenUnits = config["DQN_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
