@@ -22,20 +22,19 @@ from importlib import import_module
 from DDPG import DDPG
 
 class SAC(DDPG):
-    def __init__(self, envName, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
-        super().__init__(envName, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
-        self.alpha = tf.Variable(config["TemperatureParameter_alpha"], dtype=self.tfDtype)
-        self.epsilon = 1e-6  # added to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0 causing inf
+    def __init__(self, envName, mode, config, logger, observDim, actionDim):
+        super().__init__(envName, mode, config, logger, observDim, actionDim)
+        self.tiny = 1e-6  # added to denominator to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0 
         self.logStd_min = -13  # e**(-13) = 2.26e-06; for stds
         self.logStd_max = 1
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=dtype, name="actor_in")
+        observ = Input(shape=(observDim,), dtype=dtype, name="in")
         h = observ
         for ix, units in enumerate(hiddenUnits):
-            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"actor_hidden_{ix}")(h)
-        mean = self.dense_or_batchNorm(actionDim, "tanh", use_bias=False, trainable=trainable, name="actor_mean")(h)
-        logStd = self.dense_or_batchNorm(actionDim, "linear", trainable=trainable, name="actor_logStd")(h)
+            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
+        mean = self.dense_or_batchNorm(actionDim, "tanh", use_bias=False, trainable=trainable, name="mean")(h)
+        logStd = self.dense_or_batchNorm(actionDim, "linear", trainable=trainable, name="logStd")(h)
 
         net = Model(inputs=observ, outputs=[mean, logStd], name="actor")
         net.compile(optimizer=Adam(learning_rate=self.actor_lr)) # wo this save() saves one outputs; not mean & logStd
@@ -52,7 +51,7 @@ class SAC(DDPG):
         action = tf.tanh(actionSampled) # squashing to be in (-1,1)                     # (batchSz,actionDim)
 
         logProb_of_actionSampled = dist.log_prob(actionSampled)                         # (batchSz,actionDim)
-        logProb = logProb_of_actionSampled - tf.math.log(1 - action**2 + self.epsilon)  # logProb of action. 
+        logProb = logProb_of_actionSampled - tf.math.log(1 - action**2 + self.tiny)     # logProb of action. 
                                                                                         # cf. eq.(21) of 2018 SAC paper
         logProb = tf.reduce_sum(logProb, axis=1, keepdims=True)  # sum over multiple action parameters; (batchSz,1)
 
@@ -91,6 +90,7 @@ class SAC(DDPG):
                 target_Q_min = tf.minimum(target_Q1, target_Q2)             # (batchSz,1)
                 target_Q_soft = target_Q_min - self.alpha * next_logProb    # (batchSz,1)
                 y = reward + (1.0 - done) * self.gamma * target_Q_soft      # (batchSz,1)
+
                 Q2 = self.critic2([observ, action])                         # (batchSz,1)
                 td_error2 = tf.square(y - Q2)                               # (batchSz,1)
                 td_error2 = importance_weights * td_error2 if self.isPER else td_error2

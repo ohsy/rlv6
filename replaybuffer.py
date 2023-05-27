@@ -36,7 +36,7 @@ class ReplayBuffer:
         self.isRewardNorm = isRewardNorm
         self.npDtype = npDtype
 
-        self.eps = 1e-6
+        self.tiny = 1e-6
         if self.mode == 'continued_train':
             self.buffer = self.load()
         else:
@@ -96,7 +96,7 @@ class PERBuffer(ReplayBuffer):
         observs, actions, rewards, next_observs, done = zip(*[self.buffer[ix] for ix in indices])
         # Reward normalization
         if self.isRewardNorm:
-            rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + self.eps)
+            rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + self.tiny)
         experiences = self.experienceTuple(
             np.array(observs, dtype=self.npDtype).reshape(batch_size, -1),
             np.array(actions, dtype=self.npDtype).reshape(batch_size, -1),
@@ -118,7 +118,7 @@ class PERBuffer(ReplayBuffer):
         self.memoryCnt = len(self.buffer)
 
     def update_priorities(self, indices, td_errors):
-        updated_priorities = np.abs(td_errors.numpy().reshape(-1)) + self.eps
+        updated_priorities = np.abs(td_errors.numpy().reshape(-1)) + self.tiny
         priorities = np.array(self.priorities, self.npDtype)
         priorities[indices] = updated_priorities
         self.priorities = deque(priorities, maxlen=self.capacity)

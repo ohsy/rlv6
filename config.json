@@ -38,7 +38,7 @@
     "Critic2"                           : true,
     "RewardNormalization"               : false,
     "PER"                               : false,
-    "MemoryRatio_toStartTrain"          : 0.001, 
+    "#  MemoryRatio_toStartTrain"          : 0.001, 
     "#  MemoryRatio_toStartTrain"       : "0.5 for cartpoleV1, start train after filling replay buffer with random actions",
     "MemoryRatio_toFillWithRandomAction": 0.5, 
     "SoftUpdateRate_tau"                : 0.003, 
@@ -48,12 +48,10 @@
     "EpsilonMin"                        : 0.01,
     "EpsilonMin_comment"                : "0.01 in general",
     "EpsilonLambda"                     : 0.0001,
-    "TemperatureParameter_alpha"        : 0.06,
-    "#  TemperatureParameter_alpha"     : "0.06 for SAC, SAC_discrete, 5.0 for SAC_entropy",
     "SAC_entropy_isActionStochastic"    : false,
 
     "CartPole_v1"                       : { 
-        "MemoryCapacity"        : 1000,
+        "MemoryCapacity"        : 10000,
         "targetToMonitor"       : "sumReward", 
         "sumReward_toStopTrain" : 200, 
         "avgReward_toStopTrain" : 0,
@@ -75,7 +73,7 @@
         }
     },
     "Pendulum_v1"                       : { 
-        "MemoryCapacity"        : 1000,
+        "MemoryCapacity"        : 10000,
         "targetToMonitor"       : "avgReward", 
         "sumReward_toStopTrain" : 0,
         "avgReward_toStopTrain" : -0.005,
@@ -117,6 +115,28 @@
             "scaleshift"        : null, 
             "isDecodedScalar"   : true
         }
+    },
+
+    "Explorer"                          : "replayBufferFiller",
+    "#  Explorer"                       : "one of [epsilonDecay, replayBufferFiller]",
+    "TemperatureParameter_alpha"        : 0.06,
+    "isActionStochastic"                : false,
+
+    "DQN"                               : {
+        "Explorer"                      : "epsilonDecay"
+    },
+    "SAC"                               : {
+        "TemperatureParameter_alpha"    : 0.06, 
+        "isActionStochastic"            : true
+    },
+    "SAC_discrete"                      : {
+        "Explorer"                      : "epsilonDecay",
+        "TemperatureParameter_alpha"    : 0.06, 
+        "isActionStochastic"            : true
+    },
+    "SAC_entropy"                       : {
+        "Explorer"                      : "epsilonDecay",
+        "TemperatureParameter_alpha"    : 5.0
     },
 
     "#  ending"                         : true

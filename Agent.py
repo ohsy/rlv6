@@ -63,13 +63,20 @@ from importlib import import_module
 
 
 class Agent:
-    def __init__(self, envName, mode, config, logger, explorer="replayBufferFiller"):
+    def __init__(self, envName, mode, config, logger):
         self.mode = mode  # config["Mode"]
         self.config = config
         self.logger = logger
         self.npDtype = np.dtype(config["dtype"])
         self.tfDtype = tf.convert_to_tensor(np.zeros((1,), dtype=self.npDtype)).dtype  # tf doesn't have dtype()
-        self.npIntDtype = np.dtype(config["intdtype"])
+
+        agent_config = config[self.__class__.__name__]
+        explorer = agent_config["Explorer"] if "Explorer" in agent_config else config["Explorer"]
+        self.alpha = agent_config["TemperatureParameter_alpha"] if "TemperatureParameter_alpha" in agent_config \
+                else config["TemperatureParameter_alpha"]
+        self.alpha = tf.Variable(self.alpha, dtype=self.tfDtype)  
+        self.isActionStochastic = agent_config["isActionStochastic"] if "isActionStochastic" in agent_config \
+                else config["isActionStochastic"]  # vs. deterministic with max prob.
 
         self.isTargetActor = config["TargetActor"]
         self.isCritic2 = config["Critic2"]
@@ -78,14 +85,13 @@ class Agent:
         self.isRewardNorm = config["RewardNormalization"]
         self.isPER = config["PER"]
 
-        self.memCap = config[envName]["MemoryCapacity"]
-        self.replayBuffer = PERBuffer(mode, self.memCap, self.isRewardNorm, self.npDtype) if self.isPER \
-                       else ReplayBuffer(mode, self.memCap, self.isRewardNorm, self.npDtype)
+        self.memoryCapacity = config[envName]["MemoryCapacity"]
+        self.replayBuffer = PERBuffer(mode, self.memoryCapacity, self.isRewardNorm, self.npDtype) if self.isPER \
+                       else ReplayBuffer(mode, self.memoryCapacity, self.isRewardNorm, self.npDtype)
 
         explorerModule = import_module(f"explorer")
         Explorer = getattr(explorerModule, f"Explorer_{explorer}")
         self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer)
-        self.logger.info(f"explorer={explorer}")
         self.memoryCnt_toStartTrain = self.explorer.get_memoryCnt_toStartTrain()
 
         if self.isRewardNorm:
@@ -102,6 +108,9 @@ class Agent:
         self.batchSz = config["BatchSize"]
         self.tau = config["SoftUpdateRate_tau"] 
         self.gamma = tf.Variable(config["RewardDiscountRate_gamma"], dtype=self.tfDtype)
+        self.tiny = 1e-6  # added to denominator to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0
+
+        self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm in XXX_units list 'bn'
 
     def dense_or_batchNorm(self, units, activation, use_bias=True, trainable=True, name=None):
         """

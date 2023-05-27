@@ -22,76 +22,32 @@ from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
 from replaybuffer import ReplayBuffer, PERBuffer
-from explorer import Explorer_replayBufferFiller as Explorer
 from importlib import import_module
+from Agent import Agent
 
 
-class SAC_discrete:
-    def __init__(self, envName, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
-        self.mode = mode  # config["Mode"]
-        self.config = config
-        self.logger = logger
-        self.npDtype = np.dtype(config["dtype"])
-        self.tfDtype = tf.convert_to_tensor(np.zeros((1,), dtype=self.npDtype)).dtype  # tf doesn't have dtype()
-        self.npIntDtype = np.dtype(config["intdtype"])
+class SAC_discrete(Agent):
+    def __init__(self, envName, mode, config, logger, observDim, actionDim):
+        super().__init__(envName, mode, config, logger)
         self.actionDim = actionDim
-
-        self.isTargetActor = config["TargetActor"]
-        self.isCritic2 = config["Critic2"]
-        self.savePath = f"{config['SavePath']}/{self.__class__.__name__}"
-        self.writer = tf.summary.create_file_writer(config["SummaryWriterPath"])
-        self.isRewardNorm = config["RewardNormalization"]
-        self.isPER = config["PER"]
-
-        self.replayBuffer = PERBuffer(config, self.npDtype, self.tfDtype) if self.config["PER"] == True \
-                       else ReplayBuffer(config, self.npDtype, self.tfDtype, self.npIntDtype)
-        self.memoryCapacity = config[envName]["MemoryCapacity"]
-
-        explorerModule = import_module(f"explorer")
-        Explorer = getattr(explorerModule, f"Explorer_{explorer}")
-        self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer)
-        self.logger.info(f"explorer={explorer}")
-        self.memoryCnt_toStartTrain = self.explorer.get_memoryCnt_toStartTrain()
-
-        if self.isRewardNorm:
-            # self.recentMemoryCapacity = self.memoryCapacity // 4
-            # if "train" in self.mode:
-            #     self.reward_memory = deque(maxlen=self.memoryCapacity // 2)
-            #     self.recent_reward = deque(maxlen=self.recentMemoryCapacity)
-
-            self.reward_norm_steps = 200
-            self.reward_mean = 1
-            # self.rewardNormalizationThreshold = 0.1  # begin reward normalization after replay memory is filled over threshold
-            self.rewardNormalizationThreshold = 0.7
-
-        self.batchSz = config["BatchSize"]
-        self.tau = config["SoftUpdateRate_tau"] 
         self.actor_lr = config["Actor_learningRate"]
         self.critic_lr = config["Critic_learningRate"]
-        self.gamma = tf.Variable(config["RewardDiscountRate_gamma"], dtype=self.tfDtype) 
-        self.alpha = tf.Variable(config["TemperatureParameter_alpha"], dtype=self.tfDtype)
-        self.eps = 1e-6  # tiny quentity added to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0 causing inf
-        self.logStd_min = -13  # e**(-13) = 2.26e-06; for stds
-        self.logStd_max = 1
+        self.tiny = 1e-6  # to be added to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0 causing inf
 
-        self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm in XXX_units list like [64,'bn',64]
         actor_hiddenUnits = config["Actor_hiddenUnits"]     # like [64, 'bn', 64], 'bn' for BatchNorm
         critic_hiddenUnits = config["Critic_hiddenUnits"]   # like [64, 'bn', 64], 'bn' for BatchNorm
 
         if mode == "train":
             self.actor = self.build_actor(observDim, actor_hiddenUnits, actionDim, self.tfDtype)
             self.critic1 = self.build_critic(observDim, critic_hiddenUnits, actionDim, self.tfDtype)
-            self.target_critic1 = self.build_critic(
-                    observDim, critic_hiddenUnits, actionDim, self.tfDtype, trainable=False)
+            self.target_critic1 = self.build_critic(observDim, critic_hiddenUnits, actionDim, self.tfDtype, trainable=False)
             self.actor_optimizer = Adam(self.actor_lr)
             self.critic1_optimizer = Adam(self.critic_lr)
             if self.isTargetActor:
-                self.target_actor = self.build_actor(
-                        observDim, actor_hiddenUnits, actionDim, self.tfDtype, trainable=False)
+                self.target_actor = self.build_actor(observDim, actor_hiddenUnits, actionDim, self.tfDtype, trainable=False)
             if self.isCritic2:
                 self.critic2 = self.build_critic(observDim, critic_hiddenUnits, actionDim, self.tfDtype)
-                self.target_critic2 = self.build_critic(
-                        observDim, critic_hiddenUnits, actionDim, self.tfDtype, trainable=False)
+                self.target_critic2 = self.build_critic(observDim, critic_hiddenUnits, actionDim, self.tfDtype, trainable=False)
                 self.critic2_optimizer = Adam(self.critic_lr)
         elif mode == "test": 
             self.actor = load_model(f"{self.savePath}/actor/")
@@ -111,11 +67,11 @@ class SAC_discrete:
             self.explorer.load()
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=dtype, name="actor_in")
+        observ = Input(shape=(observDim,), dtype=dtype, name="in")
         h = observ
         for ix, units in enumerate(hiddenUnits):
-            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"actor_hidden_{ix}")(h)
-        actionProb = self.dense_or_batchNorm(actionDim, "softmax", trainable=trainable, name="actor_probability")(h)
+            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
+        actionProb = self.dense_or_batchNorm(actionDim, "softmax", trainable=trainable, name="out")(h)
 
         net = Model(inputs=observ, outputs=actionProb, name="actor")
         return net
@@ -123,38 +79,18 @@ class SAC_discrete:
     def get_actionProb_logActionProb(self, observ, withTarget=False):
         prob = self.target_actor(observ) if withTarget else self.actor(observ)  # (batchSz,actionDim)
         self.logger.debug(f"in get_actionProb_logActionProb:prob={prob}")
-        logProb = tf.math.log(prob + self.eps)                              # (batchSz,actionDim)
+        logProb = tf.math.log(prob + self.tiny)                              # (batchSz,actionDim)
         return prob, logProb
 
     def build_critic(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=dtype, name="critic_in")
+        observ = Input(shape=(observDim,), dtype=dtype, name="inputs")
         h = observ
         for ix, units in enumerate(hiddenUnits):
-            h = self.dense_or_batchNorm(units, "tanh", trainable=trainable, name=f"hidden_{ix}")(h)
+            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
         action = self.dense_or_batchNorm(actionDim, "linear", use_bias=False, trainable=trainable, name="Qs")(h)
 
         net = Model(inputs=observ, outputs=action, name="critic")
         return net
-
-    def dense_or_batchNorm(self, units, activation, use_bias=True, trainable=True, name=None):
-        """
-        Args:
-            use_bias: False may be effective when outputs are symmetric
-        """
-        regularizationFactor = 0.01
-        if units == self.batchNormInUnitsList:
-            layer = BatchNormalization(dtype = self.tfDtype)
-        else:
-            layer = Dense(units,
-                    activation = activation,
-                    use_bias = use_bias,
-                    kernel_regularizer = L2(regularizationFactor),
-                    bias_regularizer = L2(regularizationFactor),
-                    dtype = self.tfDtype,
-                    trainable = trainable,
-                    name = name
-            )
-        return layer    
 
     @tf.function
     def update_actor(self, observ):
@@ -217,7 +153,8 @@ class SAC_discrete:
         else:
             return critic1_loss, td_error1
 
-    #   @tf.function  # NOTE: recommended not to use tf.function. zip problem?? And not much enhancement. 
+
+    #   @tf.function  # NOTE: recommended not to use tf.function. zip problem?? And not much enhancement.
     def soft_update(self):
         source1 = self.critic1.variables
         target1 = self.target_critic1.variables
@@ -230,7 +167,7 @@ class SAC_discrete:
                 target_param2.assign(target_param2 * (1.0 - self.tau) + param2 * self.tau)
         if self.isTargetActor:
             source0 = self.actor.variables
-            target0 = self.target_actor.variables  
+            target0 = self.target_actor.variables
             for target_param0, param0 in zip(target0, source0):
                 target_param0.assign(target_param0 * (1.0 - self.tau) + param0 * self.tau)
 
@@ -275,13 +212,6 @@ class SAC_discrete:
             action = np.array([1 if i == idx else 0 for i in range(self.actionDim)])  # one-hot; (actionDim)
         return action
 
-    def isReadyToTrain(self):
-        b1 = self.mode == "train"
-        b2 = self.replayBuffer.memoryCnt > self.memoryCnt_toStartTrain
-        b3 = self.replayBuffer.memoryCnt > self.batchSz
-        #   b4 = self.actCnt % 1 == 0
-        return b1 and b2 and b3  #   and b4
-
     def save(self):
         self.actor.save(f"{self.savePath}/actor/")
         self.critic1.save(f"{self.savePath}/critic1/")
@@ -295,10 +225,6 @@ class SAC_discrete:
         self.explorer.save()
 
     def summary(self):
-        self.actor.summary(print_fn=self.logger.info)                   # to print in logger file
-        self.critic1.summary(print_fn=self.logger.info)                 # to print in logger file
-        
-    def summaryWrite(self, key, value, step):
-        with self.writer.as_default():
-            tf.summary.scalar(key, value, step=step)
+        self.actor.summary(print_fn=self.logger.info)   # to print in logger file
+        self.critic1.summary(print_fn=self.logger.info) # to print in logger file
 

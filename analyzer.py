@@ -32,6 +32,7 @@ class Analyzer:
         self.targetToMonitor = TargetToMonitor(env_config["targetToMonitor"])
         self.sumReward_toStopTrain = env_config["sumReward_toStopTrain"]
         self.avgReward_toStopTrain = env_config["avgReward_toStopTrain"]
+        self.timeBeforeMainLoop = 0  # used for time.time()
 
     def beforeMainLoop(self):
         self.timeBeforeMainLoop = time.time()
@@ -40,7 +41,8 @@ class Analyzer:
         return time.time() - self.timeBeforeMainLoop
 
     def afterMainLoop(self):
-        self.logger.info(f"time for main loop = {self.timeForMainLoop():.3f}sec")
+        #   self.logger.info(f"time for main loop = {self.timeForMainLoop():.3f}sec")
+        pass
 
     def beforeEpisode(self):
         self.rewards = []
@@ -90,7 +92,7 @@ class Analyzer:
         self.logger.info(msg)
 
     def afterSave(self, msg):
-        self.logger.info(msg + ", time for main loop = {self.timeForMainLoop():.3f}sec")
+        self.logger.info(msg + f", time for main loop = {self.timeForMainLoop():.3f}sec")
 
     def isTrainedEnough(self):
         if self.targetToMonitor == TargetToMonitor.sumReward:

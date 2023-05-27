@@ -64,8 +64,8 @@ from importlib import import_module
 
 
 class DDPG(Agent):
-    def __init__(self, envName, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
-        super().__init__(envName, mode, config, logger, explorer="replayBufferFiller")
+    def __init__(self, envName, mode, config, logger, observDim, actionDim):
+        super().__init__(envName, mode, config, logger)
         self.actor_lr = config["Actor_learningRate"]
         self.critic_lr = config["Critic_learningRate"]
 
@@ -113,35 +113,35 @@ class DDPG(Agent):
             self.explorer.load()
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=self.tfDtype, name="actor_in")
+        observ = Input(shape=(observDim,), dtype=self.tfDtype, name="in")
         h = observ
         for ix, units in enumerate(hiddenUnits):
-            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"actor_hidden_{ix}")(h)
-        action = self.dense_or_batchNorm(actionDim, "tanh", use_bias=False, trainable=trainable, name="actor_out")(h)
+            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
+        action = self.dense_or_batchNorm(actionDim, "tanh", use_bias=False, trainable=trainable, name="out")(h)
 
         net = Model(inputs=observ, outputs=action, name="actor")
         return net
 
     def build_critic(self, observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, 
                      dtype, trainable=True):
-        observ_inputs = Input(shape=(observDim,), dtype=dtype, name="critic_observ_in")
+        observ_inputs = Input(shape=(observDim,), dtype=dtype, name="observ_in")
         h = observ_inputs
         for ix, units in enumerate(observ_hiddenUnits):
-            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"critic_observ_hidden_{ix}")(h)
+            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"observ_hidden_{ix}")(h)
         observ_outputs = h
 
-        action_inputs = Input(shape=(actionDim,), dtype=dtype, name="critic_action_in")
+        action_inputs = Input(shape=(actionDim,), dtype=dtype, name="action_in")
         h = action_inputs
         for ix, units in enumerate(action_hiddenUnits):
-            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"critic_action_hidden_{ix}")(h)
+            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"action_hidden_{ix}")(h)
         action_outputs = h
 
         concat_inputs = Concatenate(trainable=trainable)([observ_outputs, action_outputs]) 
 
         h = concat_inputs
         for ix, units in enumerate(concat_hiddenUnits):
-            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"critic_concat_hidden_{ix}")(h)
-        Q = self.dense_or_batchNorm(1, "linear", trainable=trainable, name="critic_out")(h)
+            h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"concat_hidden_{ix}")(h)
+        Q = self.dense_or_batchNorm(1, "linear", trainable=trainable, name="out")(h)
 
         net = Model(inputs=[observ_inputs, action_inputs], outputs=Q, name="critic")
         return net

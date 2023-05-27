@@ -48,7 +48,7 @@ class Explorer_epsilonDecay:
 
     def get_memoryCnt_toStartTrain(self):
         memoryRatio_toStartTrain = 0.001
-        memoryCnt_toStartTrain = int(memoryRatio_toStartTrain * replayBuffer.capacity)
+        memoryCnt_toStartTrain = int(memoryRatio_toStartTrain * self.replayBuffer.capacity)
         return memoryCnt_toStartTrain
 
 

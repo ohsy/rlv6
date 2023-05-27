@@ -35,8 +35,8 @@ from Agent import Agent
 
 
 class DQN(Agent):
-    def __init__(self, envName, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
-        super().__init__(envName, mode, config, logger, explorer="replayBufferFiller"):
+    def __init__(self, envName, mode, config, logger, observDim, actionDim):
+        super().__init__(envName, mode, config, logger)
         self.actionDim = actionDim
         self.lr = config["DQN_learningRate"]
 
@@ -57,13 +57,13 @@ class DQN(Agent):
             self.explorer.load()
 
     def build_dqn(self, observDim, hiddenUnits, actionDim, dtype, trainable=True): 
-        observ = Input(shape=(observDim,), dtype=dtype, name="dqn_in")
+        observ = Input(shape=(observDim,), dtype=dtype, name="in")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "tanh", trainable=trainable, name=f"hidden_{ix}")(h)
         action = self.dense_or_batchNorm(actionDim, "linear", trainable=trainable, name="Qs")(h)
 
-        net = Model(inputs=observ, outputs=action)
+        net = Model(inputs=observ, outputs=action, name="dqn")
         return net
 
     @tf.function

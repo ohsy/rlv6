@@ -40,6 +40,7 @@ class Game:
         self.period_toSaveModels = config["Period_toSaveModels"]
 
     def run(self, nEpisodes, mode, env, agent, coder, analyzer):
+        analyzer.beforeMainLoop()
         for episodeCnt in range(1, nEpisodes+1):  # for episodeCnt in tqdm(range(1, nEpisodes+1)):
             analyzer.beforeEpisode()
             observFrEnv, info = env.reset()  # observFrEnv (observDim)
@@ -81,6 +82,7 @@ class Game:
                 elif (episodeCnt % self.period_toSaveModels == 0): 
                     agent.save()
                     analyzer.afterSave("networks saved...")
+        analyzer.afterMainLoop()
 
 
 def getLogger(filepath="./log.log"):
@@ -130,9 +132,12 @@ if __name__ == "__main__":
     logger.info(f"config={config}")
     logger.info(f"env action space: {env.action_space}")
     logger.info(f"env observation space: {env.observation_space}")
-    logger.info(f"coder={coder.__class__.__name__}")
-    logger.info(f"analyzer={analyzer.__class__.__name__}")
-    logger.info(f"nEpisodes={nEpisodes}")
+    logger.info(f"coder = {coder.__class__.__name__}")
+    logger.info(f"analyzer = {analyzer.__class__.__name__}")
+    logger.info(f"explorer = {agent.explorer.__class__.__name__}")
+    logger.info(f"memoryCapacity = {agent.memoryCapacity}")
+    logger.info(f"memoryCnt_toStartTrain = {agent.memoryCnt_toStartTrain}")
+    logger.info(f"nEpisodes = {nEpisodes}")
 
     game = Game(config)
     game.run(nEpisodes, mode, env, agent, coder, analyzer)
