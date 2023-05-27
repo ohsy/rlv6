@@ -22,7 +22,7 @@ from importlib import import_module
 
 
 class SAC_entropy:
-    def __init__(self, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
+    def __init__(self, envMode, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
         self.mode = mode  # config["Mode"]
         self.config = config
         self.logger = logger
@@ -39,11 +39,9 @@ class SAC_entropy:
         self.isRewardNorm = config["RewardNormalization"]
         self.isPER = config["PER"]
 
-        if self.config["PER"] == True:
-            self.replayBuffer = PERBuffer(config, self.npDtype, self.tfDtype)
-        else:
-            self.replayBuffer = ReplayBuffer(config, self.npDtype, self.tfDtype, self.npIntDtype)
-        self.memoryCapacity = config["MemoryCapacity"]
+        self.replayBuffer = PERBuffer(config, self.npDtype, self.tfDtype) if self.config["PER"] == True \
+                       else ReplayBuffer(config, self.npDtype, self.tfDtype, self.npIntDtype)
+        self.memoryCapacity = config[envName]["MemoryCapacity"]
 
         explorerModule = import_module(f"explorer")
         Explorer = getattr(explorerModule, f"Explorer_{explorer}")
@@ -314,7 +312,7 @@ class SAC_entropy:
         #   b4 = self.actCnt % 1 == 0
         return b1 and b2 and b3  #   and b4
 
-    def save(self, msg=""):
+    def save(self):
         self.actor.save(f"{self.savePath}/actor/")
         self.critic1.save(f"{self.savePath}/critic1/")
         self.target_critic1.save(f"{self.savePath}/target_critic1/")
@@ -325,7 +323,6 @@ class SAC_entropy:
             self.target_critic2.save(f"{self.savePath}/target_critic2/")
         self.replayBuffer.save(f"{self.savePath}/replayBuffer.json")
         self.explorer.save()
-        self.logger.info(msg)
 
     def summary(self):
         self.actor.summary(print_fn=self.logger.info)       # to print in logger file

@@ -7,6 +7,7 @@ class Explorer_epsilonDecay:
         self.mode = mode
         self.config = config
         self.savePath = savePath
+        self.replayBuffer = replayBuffer  # only to get capacity
 
         self.filePath = f"{self.savePath}/epsilonDecay.txt"
         self.MemoryRatio_toStartTrain = 0.001
@@ -47,7 +48,7 @@ class Explorer_epsilonDecay:
 
     def get_memoryCnt_toStartTrain(self):
         memoryRatio_toStartTrain = 0.001
-        memoryCnt_toStartTrain = int(memoryRatio_toStartTrain * self.config["MemoryCapacity"])
+        memoryCnt_toStartTrain = int(memoryRatio_toStartTrain * replayBuffer.capacity)
         return memoryCnt_toStartTrain
 
 
@@ -57,7 +58,7 @@ class Explorer_replayBufferFiller:
         self.savePath = savePath
 
         self.replayBuffer = replayBuffer  # only to get memoryCnt
-        self.memoryCnt_toFillWithRandomAction = int(config["MemoryRatio_toFillWithRandomAction"] * config["MemoryCapacity"])
+        self.memoryCnt_toFillWithRandomAction = int(config["MemoryRatio_toFillWithRandomAction"] * replayBuffer.capacity)
 
     def isReadyToExplore(self):
         b1 = self.mode in ["train", "continued_train"]

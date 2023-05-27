@@ -58,56 +58,17 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
+from Agent import Agent
 from replaybuffer import ReplayBuffer, PERBuffer
 from importlib import import_module
 
 
-class DDPG:
-    def __init__(self, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
-        self.mode = mode  # config["Mode"]
-        self.config = config
-        self.logger = logger
-        self.npDtype = np.dtype(config["dtype"])
-        self.tfDtype = tf.convert_to_tensor(np.zeros((1,), dtype=self.npDtype)).dtype  # tf doesn't have dtype()
-        self.npIntDtype = np.dtype(config["intdtype"])
-
-        self.isTargetActor = config["TargetActor"]
-        self.isCritic2 = config["Critic2"]
-        self.savePath = f"{config['SavePath']}/{self.__class__.__name__}"
-        self.writer = tf.summary.create_file_writer(config["SummaryWriterPath"])
-        self.isRewardNorm = config["RewardNormalization"]
-        self.isPER = config["PER"]
-
-        if self.config["PER"] == True:
-            self.replayBuffer = PERBuffer(config, self.npDtype, self.tfDtype)
-        else:
-            self.replayBuffer = ReplayBuffer(config, self.npDtype, self.tfDtype, self.npIntDtype)
-        self.memoryCapacity = config["MemoryCapacity"]
-
-        explorerModule = import_module(f"explorer")
-        Explorer = getattr(explorerModule, f"Explorer_{explorer}")
-        self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer)
-        self.logger.info(f"explorer={explorer}")
-        self.memoryCnt_toStartTrain = self.explorer.get_memoryCnt_toStartTrain()
-
-        if self.isRewardNorm:
-            # self.recentMemoryCapacity = self.memoryCapacity // 4
-            # if "train" in self.mode:
-            #     self.reward_memory = deque(maxlen=self.memoryCapacity // 2)
-            #     self.recent_reward = deque(maxlen=self.recentMemoryCapacity)
-
-            self.reward_norm_steps = 200
-            self.reward_mean = 1
-            # self.rewardNormalizationThreshold = 0.1  # begin reward norm after buffer is filled over threshold
-            self.rewardNormalizationThreshold = 0.7
-
-        self.batchSz = config["BatchSize"]
-        self.tau = config["SoftUpdateRate_tau"] 
+class DDPG(Agent):
+    def __init__(self, envName, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
+        super().__init__(envName, mode, config, logger, explorer="replayBufferFiller")
         self.actor_lr = config["Actor_learningRate"]
         self.critic_lr = config["Critic_learningRate"]
-        self.gamma = tf.Variable(config["RewardDiscountRate_gamma"], dtype=self.tfDtype)
 
-        self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm in X_units list like 'bn'
         actor_hiddenUnits = config["Actor_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
         observ_hiddenUnits = config["Critic_observationBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
         action_hiddenUnits = config["Critic_actionBlock_hiddenUnits"]       # like [64, 'bn', 64], 'bn' for BatchNorm
@@ -184,26 +145,6 @@ class DDPG:
 
         net = Model(inputs=[observ_inputs, action_inputs], outputs=Q, name="critic")
         return net
-
-    def dense_or_batchNorm(self, units, activation, use_bias=True, trainable=True, name=None):
-        """
-        Args:
-            use_bias: False may be effective when outputs are symmetric
-        """
-        regularizationFactor = 0.01
-        if units == self.batchNormInUnitsList:
-            layer = BatchNormalization(dtype = self.tfDtype)
-        else:
-            layer = Dense(units,
-                    activation = activation,
-                    use_bias = use_bias,
-                    kernel_regularizer = L2(regularizationFactor),
-                    bias_regularizer = L2(regularizationFactor),
-                    dtype = self.tfDtype,
-                    trainable = trainable,
-                    name = name
-            )
-        return layer    
 
     @tf.function
     def update_actor(self, observ):
@@ -312,14 +253,7 @@ class DDPG:
             action = self.actor(observ)[0]              # actor() returns [action]
         return action
 
-    def isReadyToTrain(self):
-        b1 = self.mode in ["train", "continued_train"]
-        b2 = self.replayBuffer.memoryCnt > self.memoryCnt_toStartTrain
-        b3 = self.replayBuffer.memoryCnt > self.batchSz
-        #   b4 = self.actCnt % 1 == 0
-        return b1 and b2 and b3  #   and b4
-
-    def save(self, msg=""):
+    def save(self):
         self.actor.save(f"{self.savePath}/actor/")
         self.critic1.save(f"{self.savePath}/critic1/")
         self.target_critic1.save(f"{self.savePath}/target_critic1/")
@@ -330,13 +264,8 @@ class DDPG:
             self.target_critic2.save(f"{self.savePath}/target_critic2/")
         self.replayBuffer.save(f"{self.savePath}/replayBuffer.json")
         self.explorer.save()
-        self.logger.info(msg)
 
     def summary(self):
         self.actor.summary(print_fn=self.logger.info)   # to print in logger file
         self.critic1.summary(print_fn=self.logger.info) # to print in logger file
         
-    def summaryWrite(self, key, value, step):
-        with self.writer.as_default():
-            tf.summary.scalar(key, value, step=step)
-

@@ -75,10 +75,12 @@ class Game:
             # Save model
             if mode == Mode.train: 
                 if analyzer.isTrainedEnough():
-                    agent.save(msg="networks saved and training stopped...")
+                    agent.save()
+                    analyzer.afterSave("networks saved and training stopped...")
                     break
                 elif (episodeCnt % self.period_toSaveModels == 0): 
-                    agent.save(msg="networks saved...")
+                    agent.save()
+                    analyzer.afterSave("networks saved...")
 
 
 def getLogger(filepath="./log.log"):
@@ -114,18 +116,17 @@ if __name__ == "__main__":
 
     coder = Coder(envName.name, config, logger)  
     analyzer = Analyzer(envName.name, config, logger)
-    # env = gym.make(envName.value, render_mode=("human" if mode == Mode.test else None))  
-    env = gym.make(envName.value, render_mode="human") 
+    env = gym.make(envName.value, render_mode=("human" if mode == Mode.test else None))  
+        #   env = gym.make(envName.value, render_mode="human") 
 
-    agentModule = import_module(f"{agentName.name}")
-    Agent = getattr(agentModule, f"{agentName.name}")
-    agent = Agent(mode.value, config, logger, observDim=coder.observCoder.encodedDim, actionDim=coder.actionCoder.encodedDim)
+    Agent = getattr(import_module(f"{agentName.name}"), f"{agentName.name}")
+    agent = Agent(envName.name, mode.value, config, logger, coder.observCoder.encodedDim, coder.actionCoder.encodedDim)
 
     nEpisodes = config["NumOfEpisodes_toTrain"] if mode in [Mode.train, Mode.continued_train] else config["NumOfEpisodes_toTest"] 
 
-    logger.info(f"environment = {envName}")  # logger.info(f"env name: {env.unwrapped.spec.id}")  # like "CartPole-v1"
-    logger.info(f"agent = {agentName}")
-    logger.info(f"mode = {mode}")
+    logger.info(f"environment = {envName.value}")  # logger.info(f"env name: {env.unwrapped.spec.id}")  # like "CartPole-v1"
+    logger.info(f"agent = {agentName.value}")
+    logger.info(f"mode = {mode.value}")
     logger.info(f"config={config}")
     logger.info(f"env action space: {env.action_space}")
     logger.info(f"env observation space: {env.observation_space}")

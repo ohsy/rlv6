@@ -14,7 +14,7 @@ cf. https://levelup.gitconnected.com/dqn-from-scratch-with-tensorflow-2-eb054115
         reshape reward and done
 - Move run() to gym.
 - NodeCode is used.
-
+- Agent is made and inherited.
 """
 import sys
 import json
@@ -31,52 +31,15 @@ from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from replaybuffer import ReplayBuffer, PERBuffer
 from importlib import import_module
+from Agent import Agent
 
 
-class DQN:
-    def __init__(self, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
-        self.config = config
-        self.logger = logger
-        self.mode = mode  # config["Mode"]
-        self.npDtype = np.dtype(config["dtype"])
-        self.tfDtype = tf.convert_to_tensor(np.zeros((1,), dtype=self.npDtype)).dtype  # tf doesn't have dtype()
-        self.npIntDtype = np.dtype(config["intdtype"])
+class DQN(Agent):
+    def __init__(self, envName, mode, config, logger, observDim, actionDim, explorer="replayBufferFiller"):
+        super().__init__(envName, mode, config, logger, explorer="replayBufferFiller"):
         self.actionDim = actionDim
-
-        self.savePath = f"{config['SavePath']}/{self.__class__.__name__}" 
-        self.writer = tf.summary.create_file_writer(config["SummaryWriterPath"])
-        self.isRewardNorm = config["RewardNormalization"]
-        self.isPER = config["PER"]
-
-        if self.config["PER"] == True:
-            self.replayBuffer = PERBuffer(config, self.npDtype, self.tfDtype)
-        else:
-            self.replayBuffer = ReplayBuffer(config, self.npDtype, self.tfDtype, self.npIntDtype)
-        self.memoryCapacity = config["MemoryCapacity"]
-
-        explorerModule = import_module(f"explorer") 
-        Explorer = getattr(explorerModule, f"Explorer_{explorer}")  # class
-        self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer) 
-        self.logger.info(f"explorer={explorer}")
-        self.memoryCnt_toStartTrain = self.explorer.get_memoryCnt_toStartTrain()
-
-        if self.isRewardNorm:
-            # self.recentMemoryCapacity = self.memoryCapacity // 4
-            # if self.mode == "train":
-            #     self.reward_memory = deque(maxlen=self.memoryCapacity // 2)
-            #     self.recent_reward = deque(maxlen=self.recentMemoryCapacity)
-
-            self.reward_norm_steps = 200
-            self.reward_mean = 1
-            # self.rewardNormalizationThreshold = 0.1  # begin reward norm after buffer is filled over threshold
-            self.rewardNormalizationThreshold = 0.7
-
-        self.batchSz = config["BatchSize"]
-        self.tau = config["SoftUpdateRate_tau"] 
-        self.gamma = config["RewardDiscountRate_gamma"] 
         self.lr = config["DQN_learningRate"]
 
-        self.batchNormInUnitsList = config["BatchNorm_inUnitsList"] # to represent batchNorm in X_units list like 'bn'
         hiddenUnits = config["DQN_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
 
         if mode == "train":
@@ -102,26 +65,6 @@ class DQN:
 
         net = Model(inputs=observ, outputs=action)
         return net
-
-    def dense_or_batchNorm(self, units, activation, use_bias=True, trainable=True, name=None):
-        """
-        Args:
-            use_bias: False may be effective when outputs are symmetric
-        """
-        regularizationFactor = 0.01
-        if units == self.batchNormInUnitsList:
-            layer = BatchNormalization(dtype = self.tfDtype)
-        else:
-            layer = Dense(units,
-                    activation = activation,
-                    use_bias = use_bias,
-                    kernel_regularizer = L2(regularizationFactor),
-                    bias_regularizer = L2(regularizationFactor),
-                    dtype = self.tfDtype,
-                    trainable = trainable,
-                    name = name
-            )
-        return layer    
 
     @tf.function
     def update_dqn(self, observ, action, reward, next_observ, done, importance_weights):
@@ -206,24 +149,12 @@ class DQN:
                 #   return action, Q_max                # Q_max for monitoring
         return action
     
-    def isReadyToTrain(self):
-        b1 = self.mode == "train"
-        b2 = self.replayBuffer.memoryCnt > self.memoryCnt_toStartTrain 
-        b3 = self.replayBuffer.memoryCnt > self.batchSz
-        #   b4 = self.actCnt % 1 == 0
-        return b1 and b2 and b3  #   and b4
-    
-    def save(self, msg=""):
+    def save(self):
         self.dqn.save(f"{self.savePath}/dqn/")
         self.target_dqn.save(f"{self.savePath}/target_dqn/")
         self.replayBuffer.save(f"{self.savePath}/replayBuffer.json")
         self.explorer.save()
-        self.logger.info(msg)
 
     def summary(self):
         self.dqn.summary(print_fn=self.logger.info)     # to print in logger file
-
-    def summaryWrite(self, key, value, step):
-        with self.writer.as_default():
-            tf.summary.scalar(key, value, step=step)
 

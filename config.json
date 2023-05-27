@@ -38,7 +38,6 @@
     "Critic2"                           : true,
     "RewardNormalization"               : false,
     "PER"                               : false,
-    "MemoryCapacity"                    : 10000,
     "MemoryRatio_toStartTrain"          : 0.001, 
     "#  MemoryRatio_toStartTrain"       : "0.5 for cartpoleV1, start train after filling replay buffer with random actions",
     "MemoryRatio_toFillWithRandomAction": 0.5, 
@@ -54,67 +53,70 @@
     "SAC_entropy_isActionStochastic"    : false,
 
     "CartPole_v1"                       : { 
-        "observ": {
-            "nNodes": [1,1,1,1],
-            "low": [-4.8, -1e+38, -0.418, -1e+38],
-            "high": [4.8, 1e+38, 0.418, 1e+38],
-            "possibles": [],
-            "scaleshift": null, 
-            "isDecodedScalar": false
-        },
-        "action": {
-            "nNodes": [2],
-            "low": [],
-            "high": [],
-            "possibles": [[0,1]],
-            "scaleshift": null, 
-            "isDecodedScalar": true
-        },
-        "targetToMonitor": "sumReward", 
+        "MemoryCapacity"        : 1000,
+        "targetToMonitor"       : "sumReward", 
         "sumReward_toStopTrain" : 200, 
-        "avgReward_toStopTrain" : 0
+        "avgReward_toStopTrain" : 0,
+        "observ"                : {
+            "nNodes"            : [1,1,1,1],
+            "low"               : [-4.8, -1e+38, -0.418, -1e+38],
+            "high"              : [4.8, 1e+38, 0.418, 1e+38],
+            "possibles"         : [],
+            "scaleshift"        : null, 
+            "isDecodedScalar"   : false
+        },
+        "action"                : {
+            "nNodes"            : [2],
+            "low"               : [],
+            "high"              : [],
+            "possibles"         : [[0,1]],
+            "scaleshift"        : null, 
+            "isDecodedScalar"   : true
+        }
     },
     "Pendulum_v1"                       : { 
-        "observ": {
-            "nNodes": [1,1,1],
-            "low": [-1, -1, -8],
-            "high": [1,1,8],
-            "possibles": [],
-            "scaleshift": null, 
-            "isDecodedScalar": false
-        },
-        "action": {
-            "nNodes": [1],
-            "low": [-2],
-            "high": [2],
-            "possibles": [],
-            "scaleshift": null, 
-            "isDecodedScalar": false
-        },
-        "targetToMonitor": "avgReward", 
+        "MemoryCapacity"        : 1000,
+        "targetToMonitor"       : "avgReward", 
         "sumReward_toStopTrain" : 0,
-        "avgReward_toStopTrain" : -0.005
+        "avgReward_toStopTrain" : -0.005,
+        "observ"                : {
+            "nNodes"            : [1,1,1],
+            "low"               : [-1, -1, -8],
+            "high"              : [1,1,8],
+            "possibles"         : [],
+            "scaleshift"        : null, 
+            "isDecodedScalar"   : false
+        },
+        "action"                : {
+            "nNodes"            : [1],
+            "low"               : [-2],
+            "high"              : [2],
+            "possibles"         : [],
+            "scaleshift"        : null, 
+            "isDecodedScalar"   : false
+        }
     },
     "LunarLander_v2"                    : { 
-        "observ": {
-            "nNodes": [1,1,1,1,1,1,1,1],
-            "low": [-90,-90,-5,-5,-3.1415927,-5,-0,-0], 
-            "high": [90,90,5,5,3.1415927,5,1,1],
-            "possibles": [],
-            "scaleshift": null, 
-            "isDecodedScalar": false
-        },
-        "action": {
-            "nNodes": [4],
-            "low": [],
-            "high": [],
-            "possibles": [[0,1,2,3]],
-            "scaleshift": null, 
-            "isDecodedScalar": true
-        },
-        "targetToMonitor": "sumReward", 
+        "MemoryCapacity"        : 100000,
+        "targetToMonitor"       : "sumReward", 
         "sumReward_toStopTrain" : 200,
-        "avgReward_toStopTrain" : 0
+        "avgReward_toStopTrain" : 0,
+        "observ"                : {
+            "nNodes"            : [1,1,1,1,1,1,1,1],
+            "low"               : [-90,-90,-5,-5,-3.1415927,-5,-0,-0], 
+            "high"              : [90,90,5,5,3.1415927,5,1,1],
+            "possibles"         : [],
+            "scaleshift"        : null, 
+            "isDecodedScalar"   : false
+        },
+        "action"                : {
+            "nNodes"            : [4],
+            "low"               : [],
+            "high"              : [],
+            "possibles"         : [[0,1,2,3]],
+            "scaleshift"        : null, 
+            "isDecodedScalar"   : true
+        }
     },
 
     "#  ending"                         : true
