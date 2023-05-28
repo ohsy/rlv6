@@ -80,7 +80,7 @@ class Agent:
 
         self.isTargetActor = config["TargetActor"]
         self.isCritic2 = config["Critic2"]
-        self.savePath = f"{config['SavePath']}/{self.__class__.__name__}"
+        self.savePath = f"{config['SavePath']}/{envName}/{self.__class__.__name__}"
         self.writer = tf.summary.create_file_writer(config["SummaryWriterPath"])
         self.isRewardNorm = config["RewardNormalization"]
         self.isPER = config["PER"]
