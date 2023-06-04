@@ -70,13 +70,15 @@ class Agent:
         self.npDtype = np.dtype(config["dtype"])
         self.tfDtype = tf.convert_to_tensor(np.zeros((1,), dtype=self.npDtype)).dtype  # tf doesn't have dtype()
 
-        agent_config = config[self.__class__.__name__]
-        explorer = agent_config["Explorer"] if "Explorer" in agent_config else config["Explorer"]
-        self.alpha = agent_config["TemperatureParameter_alpha"] if "TemperatureParameter_alpha" in agent_config \
-                else config["TemperatureParameter_alpha"]
+        explorer = config["Explorer"]
+        self.alpha = config["TemperatureParameter_alpha"]
+        self.isActionStochastic = config["isActionStochastic"]  # vs. deterministic with max prob.
+        if self.__class__.__name__ in config:
+            agent_config = config[self.__class__.__name__] 
+            explorer = agent_config["Explorer"] 
+            self.alpha = agent_config["TemperatureParameter_alpha"] 
+            self.isActionStochastic = config["isActionStochastic"]  
         self.alpha = tf.Variable(self.alpha, dtype=self.tfDtype)  
-        self.isActionStochastic = agent_config["isActionStochastic"] if "isActionStochastic" in agent_config \
-                else config["isActionStochastic"]  # vs. deterministic with max prob.
 
         self.isTargetActor = config["TargetActor"]
         self.isCritic2 = config["Critic2"]

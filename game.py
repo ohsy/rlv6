@@ -32,6 +32,7 @@ class AgentName(Enum):
     SAC_discrete = 'SAC_discrete'
     SAC_softmax = 'SAC_softmax'
     SAC_entropy = 'SAC_entropy'
+    SAC_ec = 'SAC_ec'  # entropy_continuous
 
 
 class Game:
