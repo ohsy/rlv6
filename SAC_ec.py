@@ -38,7 +38,7 @@ class SAC_ec(DDPG):
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
         actionSz = int(actionDim/2)
-        observ = Input(shape=(observDim,), dtype=dtype, name="in")
+        observ = Input(shape=(observDim,), dtype=dtype, name="observ")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)

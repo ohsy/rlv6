@@ -75,15 +75,14 @@ class Agent:
         self.isActionStochastic = config["isActionStochastic"]  # vs. deterministic with max prob.
         if self.__class__.__name__ in config:
             agent_config = config[self.__class__.__name__] 
-            explorer = agent_config["Explorer"] 
-            self.alpha = agent_config["TemperatureParameter_alpha"] 
-            self.isActionStochastic = config["isActionStochastic"]  
+            explorer = agent_config["Explorer"] if "Explorer" in agent_config else explorer
+            self.alpha = agent_config["TemperatureParameter_alpha"] if "TemperatureParameter_alpha" in agent_config else self.alpha
+            self.isActionStochastic = config["isActionStochastic"]  if "isActionStochastic" in agent_config else self.isActionStochastic
         self.alpha = tf.Variable(self.alpha, dtype=self.tfDtype)  
 
         self.isTargetActor = config["TargetActor"]
         self.isCritic2 = config["Critic2"]
         self.savePath = f"{config['SavePath']}/{envName}/{self.__class__.__name__}"
-        self.writer = tf.summary.create_file_writer(config["SummaryWriterPath"])
         self.isRewardNorm = config["RewardNormalization"]
         self.isPER = config["PER"]
 
@@ -140,8 +139,4 @@ class Agent:
         b3 = self.replayBuffer.memoryCnt > self.batchSz
         #   b4 = self.actCnt % 1 == 0
         return b1 and b2 and b3  #   and b4
-
-    def summaryWrite(self, key, value, step):
-        with self.writer.as_default():
-            tf.summary.scalar(key, value, step=step)
 

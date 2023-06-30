@@ -47,8 +47,8 @@ class NodeCoder:
         self.isDecodedScalar = isDecodedScalar
    
         # continuous 
-        self.low = np.zeros(self.nParameters, dtype=np.float32) if low is None else low              # 'is' instead of '=='
-        self.high = np.zeros(self.nParameters, dtype=np.float32) if high is None else high           # 'is' instead of '=='
+        self.low = np.zeros(self.nParameters, dtype=np.float32) if low is None else np.array(low)    # 'is' instead of '=='
+        self.high = np.zeros(self.nParameters, dtype=np.float32) if high is None else np.array(high) # 'is' instead of '=='
         self.scaleshift = scaleshift
 
         # dicrete
@@ -68,9 +68,9 @@ class NodeCoder:
         for ix in range(0, len(self.nNodes)):
             if self.nNodes[ix] == 1:  # continuous
                 if self.scaleshift == 'sym_unit':
-                    nodeVec.append((vec - self.low) / (self.high - self.low) * 2 - 1)    # from range (low,high) to (-1,1)
+                    nodeVec.append((vec[ix] - self.low[ix]) / (self.high[ix] - self.low[ix]) * 2 - 1)    # from range (low,high) to (-1,1)
                 elif self.scaleshift == 'unit':
-                    nodeVec.append((vec - self.low) / (self.high - self.low) - 0.5)      # from range (low,high) to (0,1)
+                    nodeVec.append((vec[ix] - self.low[ix]) / (self.high[ix] - self.low[ix]) - 0.5)      # from range (low,high) to (0,1)
                 else:
                     nodeVec.append(vec[ix]) 
             else:  # self.nNodes[ix] > 1; discrete
@@ -93,9 +93,9 @@ class NodeCoder:
         for ix in range(0, len(self.nNodes)):
             if self.nNodes[ix] == 1:  # continuous
                 if self.scaleshift == 'sym_unit':
-                    vec.append(((action + 1) / 2) * (self.high - self.low) + self.low)  # from range (-1,1) to (low,high)
+                    vec.append(((nodeVec[ix] + 1) / 2) * (self.high[ix] - self.low[ix]) + self.low[ix])  # from range (-1,1) to (low,high)
                 elif self.scaleshift == 'unit':
-                    vec.append(action * (self.high - self.low) + self.low)              # from range (0,1) to (low,high)
+                    vec.append(nodeVec[ix] * (self.high[ix] - self.low[ix]) + self.low[ix])              # from range (0,1) to (low,high)
                 else:
                     vec.append(nodeVec[ix])
                 nodeIdx += 1

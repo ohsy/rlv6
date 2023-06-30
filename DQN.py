@@ -57,7 +57,7 @@ class DQN(Agent):
             self.explorer.load()
 
     def build_dqn(self, observDim, hiddenUnits, actionDim, dtype, trainable=True): 
-        observ = Input(shape=(observDim,), dtype=dtype, name="in")
+        observ = Input(shape=(observDim,), dtype=dtype, name="inputs")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "tanh", trainable=trainable, name=f"hidden_{ix}")(h)

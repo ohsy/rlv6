@@ -113,11 +113,11 @@ class DDPG(Agent):
             self.explorer.load()
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=self.tfDtype, name="in")
+        observ = Input(shape=(observDim,), dtype=self.tfDtype, name="observ")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
-        action = self.dense_or_batchNorm(actionDim, "tanh", use_bias=False, trainable=trainable, name="out")(h)
+        action = self.dense_or_batchNorm(actionDim, "tanh", use_bias=False, trainable=trainable, name="action")(h)
 
         net = Model(inputs=observ, outputs=action, name="actor")
         return net

@@ -29,7 +29,7 @@ class SAC(DDPG):
         self.logStd_max = 1
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=dtype, name="in")
+        observ = Input(shape=(observDim,), dtype=dtype, name="observ")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)

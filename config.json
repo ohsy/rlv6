@@ -1,143 +1,172 @@
 {    
-    "Mode"                             	: "train",
-    "Mode_comment"                     	: "select from {train, test, continued_train} which are class Mode's names",
-    "Environment"                       : "CartPole-v1",
-    "Agent"                             : "DQN",
-    "LogPath"                           : "./log",
-    "dtype"                            	: "float32",
-    "intdtype"                          : "int32",
+    "Mode" : "train",
+    "Mode_comment" : "select from {train, test, continued_train} which are class Mode's names",
+    "Environment" : "CartPole-v1",
+    "Agent" : "DQN",
+    "LogPath" : "./log",
+    "dtype" : "float32",
+    "intdtype" : "int32",
 
-    "XXNetUnits_comment"                : "units of hidden layers like [64,'bn',64]. 'bn' from BatchNormInUnitsList", 
-    "BatchNorm_inUnitsList"             : "bn",
-    "DQN_hiddenUnits"               	: [32, 32],
-    "Actor_hiddenUnits"                 : [32, 32],
-    "Critic_hiddenUnits"                : [32, 64, 32],
-    "Critic_observationBlock_hiddenUnits"   : [32, 32],
-    "Critic_actionBlock_hiddenUnits"        : [32, 32],
-    "Critic_concatenateBlock_hiddenUnits"   : [128, 16],
+    "XXNetUnits_comment" : "units of hidden layers like [64,'bn',64]. 'bn' from BatchNormInUnitsList", 
+    "BatchNorm_inUnitsList" : "bn",
+    "DQN_hiddenUnits" : [32, 32],
+    "Actor_hiddenUnits" : [128, 128, 128, 128],
+    "Critic_hiddenUnits" : [128, 128, 32],
+    "#  Actor_hiddenUnits" : "[32, 32] for Pendulum",
+    "#  Critic_hiddenUnits" : "[32, 64, 32] for Pendulum",
+    "Critic_observationBlock_hiddenUnits" : [64, 64],
+    "Critic_actionBlock_hiddenUnits" : [64, 64],
+    "Critic_concatenateBlock_hiddenUnits" : [128, 128, 128, 128],
+    "#  Critic_observationBlock_hiddenUnits" : "[32, 32] for Pendulum",
+    "#  Critic_actionBlock_hiddenUnits" : "[32, 32] for Pendulum",
+    "#  Critic_concatenateBlock_hiddenUnits" : "[128, 16] for Pendulum",
 
-    "SavePath"                          : "./model",
-    "SummaryWriterPath"                 : "./summarywriter",
-    "NumOfEpisodes_toTrain"             : 10000, 
-    "NumOfEpisodes_train_comment"       : "10000 for cartpoleV1", 
-    "#  SumReward_toStopTrain"          : 200,
-    "#  #   SumReward_toStopTrain"      : "for cartpoleV1.",
-    "#  AvgReward_toStopTrain"          : -0.005,
-    "#  #   AvgReward_toStopTrain"      : "-0.001 for pendulumV1",
-    "NumOfEpisodes_toTest"              : 3,
-    "Period_toSaveModels"               : 100,
-    "#  Period_toSaveModels"            : "100 for cartpoleV1, in number of episodes",
-    "BatchSize"                         : 64, 
-    "DQN_learningRate"                  : 0.00025,
-    "Actor_learningRate"                : 0.0003,
-    "#  Actor_learningRate"             : "0.0003 in general",
-    "Critic_learningRate"               : 0.0006,
-    "#  Critic_learningRate"            : "0.0006 in general",
+    "SavePath" : "./model",
+    "NumOfEpisodes_toTrain" : 1000, 
+    "# NumOfEpisodes_toTrain" : "10000 for cartpoleV1", 
+    "#  SumReward_toStopTrain" : 200,
+    "#  #   SumReward_toStopTrain" : "for cartpoleV1.",
+    "#  AvgReward_toStopTrain" : -0.005,
+    "#  #   AvgReward_toStopTrain" : "-0.001 for pendulumV1",
+    "NumOfEpisodes_toTest" : 3,
+    "Period_toSaveModels" : 200,
+    "#  Period_toSaveModels" : "100 for cartpoleV1, in number of episodes",
+    "BatchSize" : 64, 
+    "DQN_learningRate" : 0.00025,
+    "Actor_learningRate" : 0.0003,
+    "#  Actor_learningRate" : "0.0003 in general",
+    "Critic_learningRate" : 0.0006,
+    "#  Critic_learningRate" : "0.0006 in general",
 
-    "TargetActor"                       : false,
-    "Critic2"                           : true,
-    "RewardNormalization"               : false,
-    "PER"                               : false,
-    "#  MemoryRatio_toStartTrain"          : 0.001, 
-    "#  MemoryRatio_toStartTrain"       : "0.5 for cartpoleV1, start train after filling replay buffer with random actions",
+    "TargetActor" : false,
+    "Critic2" : true,
+    "RewardNormalization" : false,
+    "PER" : false,
+    "#  MemoryRatio_toStartTrain" : 0.001, 
+    "#  MemoryRatio_toStartTrain" : "0.5 for cartpoleV1, start train after filling replay buffer with random actions",
     "MemoryRatio_toFillWithRandomAction": 0.5, 
-    "SoftUpdateRate_tau"                : 0.003, 
-    "RewardDiscountRate_gamma"          : 0.99,
-    "EpsilonInit"                       : 1.0,
-    "EpsilonDecay"                      : 0.99,
-    "EpsilonMin"                        : 0.01,
-    "EpsilonMin_comment"                : "0.01 in general",
-    "EpsilonLambda"                     : 0.0001,
-    "SAC_entropy_isActionStochastic"    : false,
+    "SoftUpdateRate_tau" : 0.003, 
+    "RewardDiscountRate_gamma" : 0.99,
+    "EpsilonInit" : 1.0,
+    "EpsilonDecay" : 0.99,
+    "EpsilonMin" : 0.01,
+    "#  EpsilonMin" : "0.01 in general",
+    "EpsilonLambda" : 0.0001,
+    "# SAC_entropy_isActionStochastic" : false,
 
-    "CartPole_v1"                       : { 
-        "MemoryCapacity"        : 10000,
-        "targetToMonitor"       : "sumReward", 
+    "CartPole_v1" : { 
+        "MemoryCapacity" : 10000,
+        "TargetToMonitor" : "sumReward", 
         "sumReward_toStopTrain" : 200, 
         "avgReward_toStopTrain" : 0,
-        "observ"                : {
-            "nNodes"            : [1,1,1,1],
-            "low"               : [-4.8, -1e+38, -0.418, -1e+38],
-            "high"              : [4.8, 1e+38, 0.418, 1e+38],
-            "possibles"         : [],
-            "scaleshift"        : null, 
-            "isDecodedScalar"   : false
+        "observ" : {
+            "nNodes" : [1,1,1,1],
+            "low" : [-4.8, -1e+38, -0.418, -1e+38],
+            "high" : [4.8, 1e+38, 0.418, 1e+38],
+            "possibles" : [],
+            "scaleshift" : null, 
+            "isDecodedScalar" : false
         },
-        "action"                : {
-            "nNodes"            : [2],
-            "low"               : [],
-            "high"              : [],
-            "possibles"         : [[0,1]],
-            "scaleshift"        : null, 
-            "isDecodedScalar"   : true
+        "action" : {
+            "nNodes" : [2],
+            "low" : [],
+            "high" : [],
+            "possibles" : [[0,1]],
+            "scaleshift" : null, 
+            "isDecodedScalar" : true
         }
     },
-    "Pendulum_v1"                       : { 
-        "MemoryCapacity"        : 10000,
-        "targetToMonitor"       : "avgReward", 
+    "Pendulum_v1" : { 
+        "MemoryCapacity" : 10000,
+        "TargetToMonitor" : "avgReward", 
         "sumReward_toStopTrain" : 0,
         "avgReward_toStopTrain" : -0.005,
-        "observ"                : {
-            "nNodes"            : [1,1,1],
-            "low"               : [-1, -1, -8],
-            "high"              : [1,1,8],
-            "possibles"         : [],
-            "scaleshift"        : null, 
-            "isDecodedScalar"   : false
+        "observ" : {
+            "nNodes" : [1,1,1],
+            "low" : [-1, -1, -8],
+            "high" : [1,1,8],
+            "possibles" : [],
+            "scaleshift" : null, 
+            "isDecodedScalar" : false
         },
-        "action"                : {
-            "nNodes"            : [1],
-            "low"               : [-2],
-            "high"              : [2],
-            "possibles"         : [],
-            "scaleshift"        : null, 
-            "isDecodedScalar"   : false
+        "action" : {
+            "nNodes" : [1],
+            "low" : [-2],
+            "high" : [2],
+            "possibles" : [],
+            "scaleshift" : null, 
+            "isDecodedScalar" : false
         }
     },
-    "LunarLander_v2"                    : { 
-        "MemoryCapacity"        : 100000,
-        "targetToMonitor"       : "sumReward", 
-        "sumReward_toStopTrain" : 200,
+    "LunarLander_v2" : { 
+        "MemoryCapacity" : 100000,
+        "TargetToMonitor" : "sumReward", 
+        "sumReward_toStopTrain" : 2000,
+        "#  sumReward_toStopTrain" : "200 in general, 2000 for running NumOfEpisodes",
         "avgReward_toStopTrain" : 0,
-        "observ"                : {
-            "nNodes"            : [1,1,1,1,1,1,1,1],
-            "low"               : [-90,-90,-5,-5,-3.1415927,-5,-0,-0], 
-            "high"              : [90,90,5,5,3.1415927,5,1,1],
-            "possibles"         : [],
-            "scaleshift"        : null, 
-            "isDecodedScalar"   : false
+        "observ" : {
+            "nNodes" : [1,1,1,1,1,1,1,1],
+            "low" : [-90,-90,-5,-5,-3.1415927,-5,-0,-0], 
+            "high" : [90,90,5,5,3.1415927,5,1,1],
+            "possibles" : [],
+            "scaleshift" : null, 
+            "isDecodedScalar" : false
         },
-        "action"                : {
-            "nNodes"            : [4],
-            "low"               : [],
-            "high"              : [],
-            "possibles"         : [[0,1,2,3]],
-            "scaleshift"        : null, 
-            "isDecodedScalar"   : true
+        "action" : {
+            "nNodes" : [4],
+            "low" : [],
+            "high" : [],
+            "possibles" : [[0,1,2,3]],
+            "scaleshift" : null, 
+            "isDecodedScalar" : true
         }
     },
 
-    "Explorer"                          : "replayBufferFiller",
-    "#  Explorer"                       : "one of [epsilonDecay, replayBufferFiller]",
-    "TemperatureParameter_alpha"        : 0.06,
-    "isActionStochastic"                : false,
+    "DaisoSokcho" : { 
+        "MemoryCapacity" : 10000,
+        "TargetToMonitor" : "avgReward", 
+        "sumReward_toStopTrain" : 1,
+        "avgReward_toStopTrain" : 1,
+        "#  avgReward_toStopTrain" : "1 not to stop training early",
+        "observ" : {
+            "nNodes" : [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            "low" : [0,0,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,5,5,0,0,0], 
+            "high" : [364,83,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,35,35,10,50,500],
+            "possibles" : [],
+            "scaleshift" : null, 
+            "isDecodedScalar" : false
+        },
+        "action" : {
+            "nNodes" : [1,1,1,1,1],
+            "low" : [0,0,0,0,0],
+            "high" : [5,7,5,5,5],
+            "possibles" : [],
+            "scaleshift" : "sym_unit", 
+            "isDecodedScalar" : false
+        }
+    },
 
-    "DQN"                               : {
-        "Explorer"                      : "epsilonDecay"
+    "Explorer" : "replayBufferFiller",
+    "#  Explorer" : "one of [epsilonDecay, replayBufferFiller]",
+    "TemperatureParameter_alpha" : 0.06,
+    "isActionStochastic" : false,
+
+    "DQN" : {
+        "Explorer" : "epsilonDecay"
     },
-    "SAC"                               : {
-        "TemperatureParameter_alpha"    : 0.06, 
-        "isActionStochastic"            : true
+    "SAC" : {
+        "TemperatureParameter_alpha" : 0.06, 
+        "isActionStochastic" : true
     },
-    "SAC_discrete"                      : {
-        "Explorer"                      : "epsilonDecay",
-        "TemperatureParameter_alpha"    : 0.06, 
-        "isActionStochastic"            : true
+    "SAC_discrete" : {
+        "Explorer" : "epsilonDecay",
+        "TemperatureParameter_alpha" : 0.06, 
+        "isActionStochastic" : true
     },
-    "SAC_entropy"                       : {
-        "Explorer"                      : "epsilonDecay",
-        "TemperatureParameter_alpha"    : 5.0
+    "SAC_entropy" : {
+        "Explorer" : "epsilonDecay",
+        "TemperatureParameter_alpha" : 5.0
     },
 
-    "#  ending"                         : true
+    "#  ending" : true
 }

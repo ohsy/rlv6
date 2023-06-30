@@ -67,11 +67,11 @@ class SAC_discrete(Agent):
             self.explorer.load()
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=dtype, name="in")
+        observ = Input(shape=(observDim,), dtype=dtype, name="observ")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
-        actionProb = self.dense_or_batchNorm(actionDim, "softmax", trainable=trainable, name="out")(h)
+        actionProb = self.dense_or_batchNorm(actionDim, "softmax", trainable=trainable, name="actionProb")(h)
 
         net = Model(inputs=observ, outputs=actionProb, name="actor")
         return net

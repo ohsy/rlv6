@@ -29,11 +29,11 @@ class SAC_entropy(DDPG):
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
         """ softmax activation, Softmax layer results in NaN """
-        observ = Input(shape=(observDim,), dtype=dtype, name="in")
+        observ = Input(shape=(observDim,), dtype=dtype, name="observ")
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
-        logit = self.dense_or_batchNorm(actionDim, "linear", use_bias=True, trainable=trainable, name="out")(h)
+        logit = self.dense_or_batchNorm(actionDim, "linear", use_bias=True, trainable=trainable, name="logit")(h)
             #   actionProb = Softmax()(logit)
         exps = tf.math.exp(logit)
         sums = tf.reduce_sum(exps, axis=1, keepdims=True) + self.tiny                    # eps to prevent NaN
