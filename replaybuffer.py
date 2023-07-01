@@ -26,13 +26,14 @@ class NpDecoder(json.JSONDecoder):   # TEMP
         return super(NpEncoder, self).default(obj)
 
 class ReplayBuffer:
-    def __init__(self, mode, capacity, isRewardNorm, npDtype):
+    def __init__(self, mode, capacity, savePath, isRewardNorm, npDtype):
         """
         experience is namedtuple ("experience", field_names=["observ","action","reward","next_observ","done"])
         where each field is an ndarray of numbers like float(observ, action, reward) or int(action or done).
         """
         self.mode = mode
         self.capacity = capacity
+        self.filePath = f"{savePath}/replayBuffer.json"
         self.isRewardNorm = isRewardNorm
         self.npDtype = npDtype
 
@@ -59,10 +60,9 @@ class ReplayBuffer:
         self.buffer.append(experience)
         self.memoryCnt = len(self.buffer)
 
-    def save(self, filePath):
+    def save(self):
         """ field as a list. experience as a list of lists.  buffer as a list of lists of lists.  """
-        self.filePath = filePath
-        with open(f"{filePath}", 'wt') as fp:
+        with open(f"{self.filePath}", 'wt') as fp:
             json.dump(list(self.buffer), fp, cls=NpEncoder) 
 
     def load(self):

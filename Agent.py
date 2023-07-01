@@ -87,8 +87,8 @@ class Agent:
         self.isPER = config["PER"]
 
         self.memoryCapacity = config[envName]["MemoryCapacity"]
-        self.replayBuffer = PERBuffer(mode, self.memoryCapacity, self.isRewardNorm, self.npDtype) if self.isPER \
-                       else ReplayBuffer(mode, self.memoryCapacity, self.isRewardNorm, self.npDtype)
+        self.replayBuffer = PERBuffer(mode, self.memoryCapacity, self.savePath, self.isRewardNorm, self.npDtype) if self.isPER \
+                       else ReplayBuffer(mode, self.memoryCapacity, self.savePath, self.isRewardNorm, self.npDtype)
 
         explorerModule = import_module(f"explorer")
         Explorer = getattr(explorerModule, f"Explorer_{explorer}")

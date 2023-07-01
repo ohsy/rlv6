@@ -152,7 +152,7 @@ class DQN(Agent):
     def save(self):
         self.dqn.save(f"{self.savePath}/dqn/")
         self.target_dqn.save(f"{self.savePath}/target_dqn/")
-        self.replayBuffer.save(f"{self.savePath}/replayBuffer.json")
+        self.replayBuffer.save()
         self.explorer.save()
 
     def summary(self):

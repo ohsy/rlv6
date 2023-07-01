@@ -22,7 +22,7 @@
     "#  Critic_concatenateBlock_hiddenUnits" : "[128, 16] for Pendulum",
 
     "SavePath" : "./model",
-    "NumOfEpisodes_toTrain" : 1000, 
+    "NumOfEpisodes_toTrain" : 5000, 
     "# NumOfEpisodes_toTrain" : "10000 for cartpoleV1", 
     "#  SumReward_toStopTrain" : 200,
     "#  #   SumReward_toStopTrain" : "for cartpoleV1.",

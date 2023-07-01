@@ -262,7 +262,7 @@ class DDPG(Agent):
         if self.isCritic2:
             self.critic2.save(f"{self.savePath}/critic2/")
             self.target_critic2.save(f"{self.savePath}/target_critic2/")
-        self.replayBuffer.save(f"{self.savePath}/replayBuffer.json")
+        self.replayBuffer.save()
         self.explorer.save()
 
     def summary(self):

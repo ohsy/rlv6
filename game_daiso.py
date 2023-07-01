@@ -82,6 +82,15 @@ class Game:
                         np.array([done], dtype=agent.npDtype)         # bool to ndarray of dtype
                 )  
                 agent.replayBuffer.remember(experience)
+
+                self.logger.info(f"=================")
+                self.logger.info(f"observFrEnv={observFrEnv}")
+                self.logger.info(f"actionToEnv={actionToEnv}")
+                self.logger.info(f"next_observFrEnv={next_observFrEnv}")
+                self.logger.info(f"observ={observ}")
+                self.logger.info(f"action={action}")
+                self.logger.info(f"reward={reward}")
+                self.logger.info(f"next_observ={next_observ}")
  
                 if agent.isReadyToTrain():
                     batch, indices, importance_weights = agent.replayBuffer.sample(agent.batchSz)

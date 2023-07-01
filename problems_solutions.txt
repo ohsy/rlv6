@@ -4,3 +4,6 @@ solution: python version is 3.11 now. Should be downgraded.
         Install miniconda to use python 3.9 and install tensorflow and etc. cf. https://www.tensorflow.org/install/pip#macos
         Now gymnasium[box2d] is installed well.
 
+problem: critic loss and actor loss increase after some episodes.
+solution: found that hard update and soft update are mixed. A soft update is done every 500 steps. The hard update part is removed.
+
