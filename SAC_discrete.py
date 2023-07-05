@@ -50,18 +50,18 @@ class SAC_discrete(Agent):
                 self.target_critic2 = self.build_critic(observDim, critic_hiddenUnits, actionDim, self.tfDtype, trainable=False)
                 self.critic2_optimizer = Adam(self.critic_lr)
         elif mode == "test": 
-            self.actor = load_model(f"{self.savePath}/actor/")
+            self.actor = load_model(f"{self.savePath}/actor/", compile=False)
             self.logger.info(f"actor is loaded from {self.savePath}/actor/")
             self.actor.summary(print_fn=self.logger.info)
         elif mode == "continued_train":
-            self.actor = load_model(f"{self.savePath}/actor/")
-            self.critic1 = load_model(f"{self.savePath}/critic1/")
-            self.target_critic1 = load_model(f"{self.savePath}/target_critic1/")
+            self.actor = load_model(f"{self.savePath}/actor/", compile=False)
+            self.critic1 = load_model(f"{self.savePath}/critic1/", compile=False)
+            self.target_critic1 = load_model(f"{self.savePath}/target_critic1/", compile=False)
             if self.isCritic2:
-                self.critic2 = load_model(f"{self.savePath}/critic2/")
-                self.target_critic2 = load_model(f"{self.savePath}/target_critic2/")
+                self.critic2 = load_model(f"{self.savePath}/critic2/", compile=False)
+                self.target_critic2 = load_model(f"{self.savePath}/target_critic2/", compile=False)
             if self.isTargetActor:
-                self.target_actor = load_model(f"{self.savePath}/target_actor/")
+                self.target_actor = load_model(f"{self.savePath}/target_actor/", compile=False)
             self.actor.summary(print_fn=self.logger.info)
             self.critic1.summary(print_fn=self.logger.info)
             self.explorer.load()

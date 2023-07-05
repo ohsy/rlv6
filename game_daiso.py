@@ -90,6 +90,9 @@ class Game:
                 self.logger.info(f"observ={observ}")
                 self.logger.info(f"action={action}")
                 self.logger.info(f"reward={reward}")
+                self.logger.info(f"cost_term={timestepInfo['reward_terms']['cost_term']}")
+                self.logger.info(f"temp_term={timestepInfo['reward_terms']['temperature_term']}")
+                self.logger.info(f"cons_term={timestepInfo['reward_terms']['consecutive_term']}")
                 self.logger.info(f"next_observ={next_observ}")
  
                 if agent.isReadyToTrain():

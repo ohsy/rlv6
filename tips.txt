@@ -1,0 +1,14 @@
+
+problem: gymnasium[box2d] is not installed
+solution: python version is 3.11 now. Should be downgraded. 
+        Install miniconda to use python 3.9 and install tensorflow and etc. cf. https://www.tensorflow.org/install/pip#macos
+        Now gymnasium[box2d] is installed well.
+
+problem: critic loss and actor loss increase after some episodes.
+solution: 
+    - found that actionToEnv is input to critic instead of action itself (from actor). 
+        Note that the scaling from action to actionToEnv is not made with Tensorflow. 
+        The backpropagation from Q of critic to actor should be through action instead of actionToEnv.
+
+tip: it seems that "linear" shows better performance than "tanh" for actor's mean layer's activation in SAC.
+

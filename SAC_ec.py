@@ -16,7 +16,6 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Dense, BatchNormalization, Concatenate
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
-from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
 from replaybuffer import ReplayBuffer, PERBuffer
 from importlib import import_module
@@ -42,12 +41,11 @@ class SAC_ec(DDPG):
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
-        mean = self.dense_or_batchNorm(actionSz, "tanh", use_bias=False, trainable=trainable, name="mean")(h)
+        mean = self.dense_or_batchNorm(actionSz, "linear", use_bias=False, trainable=trainable, name="mean")(h)
         logStd = self.dense_or_batchNorm(actionSz, "linear", trainable=trainable, name="logStd")(h)
 
         net = Model(inputs=observ, outputs=[mean, logStd], name="actor")
         net.compile(optimizer=Adam(learning_rate=self.actor_lr)) # wo this save() saves one outputs; not mean & logStd
-        #   net.compile()  # NOTE: without this save() saves one outputs instead of mean and logStd; not working??
 
         return net
 

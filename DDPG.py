@@ -94,20 +94,20 @@ class DDPG(Agent):
                         trainable=False)
                 self.critic2_optimizer = Adam(self.critic_lr)
         elif mode == "test": 
-            self.actor = load_model(f"{self.savePath}/actor/")
+            self.actor = load_model(f"{self.savePath}/actor/", compile=False)
             self.actor.summary(print_fn=self.logger.info)
         elif mode == "continued_train":
-            self.actor = load_model(f"{self.savePath}/actor/")
-            self.critic1 = load_model(f"{self.savePath}/critic1/")
-            self.target_critic1 = load_model(f"{self.savePath}/target_critic1/")
+            self.actor = load_model(f"{self.savePath}/actor/", compile=False)
+            self.critic1 = load_model(f"{self.savePath}/critic1/", compile=False)
+            self.target_critic1 = load_model(f"{self.savePath}/target_critic1/", compile=False)
             self.actor_optimizer = Adam(self.actor_lr)
             self.critic1_optimizer = Adam(self.critic_lr)
             if self.isCritic2:
-                self.critic2 = load_model(f"{self.savePath}/critic2/")
-                self.target_critic2 = load_model(f"{self.savePath}/target_critic2/")
+                self.critic2 = load_model(f"{self.savePath}/critic2/", compile=False)
+                self.target_critic2 = load_model(f"{self.savePath}/target_critic2/", compile=False)
                 self.critic2_optimizer = Adam(self.critic_lr)
             if self.isTargetActor:
-                self.target_actor = load_model(f"{self.savePath}/target_actor/")
+                self.target_actor = load_model(f"{self.savePath}/target_actor/", compile=False)
             self.actor.summary(print_fn=self.logger.info)
             self.critic1.summary(print_fn=self.logger.info)
             self.explorer.load()
@@ -117,7 +117,7 @@ class DDPG(Agent):
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
-        action = self.dense_or_batchNorm(actionDim, "tanh", use_bias=False, trainable=trainable, name="action")(h)
+        action = self.dense_or_batchNorm(actionDim, "linear", use_bias=False, trainable=trainable, name="action")(h)
 
         net = Model(inputs=observ, outputs=action, name="actor")
         return net

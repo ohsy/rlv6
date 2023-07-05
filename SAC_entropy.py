@@ -15,7 +15,6 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Dense, BatchNormalization, Concatenate
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
-from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
 from replaybuffer import ReplayBuffer, PERBuffer
 from importlib import import_module

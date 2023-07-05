@@ -47,11 +47,11 @@ class DQN(Agent):
             self.target_dqn = self.build_dqn(observDim, hiddenUnits, actionDim, self.tfDtype, trainable=False)
             self.optimizer = Adam(self.lr)
         elif mode == "test": 
-            self.dqn = load_model(f"{self.savePath}/dqn/")
+            self.dqn = load_model(f"{self.savePath}/dqn/", compile=False)
             self.dqn.summary(print_fn=self.logger.info)
         elif mode == "continued_train":
-            self.dqn = load_model(f"{self.savePath}/dqn/")
-            self.target_dqn = load_model(f"{self.savePath}/target_dqn/")
+            self.dqn = load_model(f"{self.savePath}/dqn/", compile=False)
+            self.target_dqn = load_model(f"{self.savePath}/target_dqn/", compile=False)
             self.optimizer = Adam(self.lr)
             self.dqn.summary(print_fn=self.logger.info)
             self.explorer.load()
