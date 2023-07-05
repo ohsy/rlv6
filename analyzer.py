@@ -27,6 +27,7 @@ class Analyzer:
         self.avgReward = 0
         self.losss0 = []
         self.losss1 = []
+        self.stepCnt = 0
         self.trainCnt = 0
         self.timeBeforeEpisode = None
 
@@ -67,8 +68,9 @@ class Analyzer:
         #   tf.summary.scalar("alpha", agent.alpha, step=trainCnt)
         self.trainCnt += 1
 
-    def afterTimestep(self, reward):
+    def afterTimestep(self, reward, info):
         self.rewards.append(reward)
+        self.stepCnt += 1
 
     def afterEpisode(self, episodeCnt, agent):
         self.preStatus = self.status

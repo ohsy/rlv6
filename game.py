@@ -68,7 +68,7 @@ class Game:
                         agent.replayBuffer.update_priorities(indices, td_error)
                     analyzer.afterTrain(loss, agent)
 
-                analyzer.afterTimestep(reward)
+                analyzer.afterTimestep(reward, info)
 
                 observFrEnv = next_observFrEnv
                 if done:
@@ -125,7 +125,7 @@ if __name__ == "__main__":
 
     coder = Coder(envName.name, config, logger)  
     analyzer = Analyzer(envName.name, config, logger, summaryWriter)
-    if envName == "DaisoSokcho":
+    if envName == envName.DaisoSokcho:
         env = DaisoSokcho(phase = mode.value)
     else:
         env = gym.make(envName.value, render_mode=("human" if mode == Mode.test else None))  

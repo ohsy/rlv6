@@ -1,0 +1,120 @@
+{
+    "network": {
+        "actor": {
+            "name": "DIS.Actor",
+            "units": [256, 256, 256]
+        },
+        "critic": {
+            "name": "DIS.Critic",
+            "units": {
+                "observation": [128, 128],
+                "action": [128, 128],
+                "concat": [256, 256, 256]
+            }
+        }
+    },
+
+    "COMFORT_ZONE": {
+        "EFFICIENT": {
+            "# 1F": [23, 24],
+            "1F": [20, 21],
+            "2F": [20, 21],
+            "3F": [20, 21],
+            "4F": [20, 21],
+            "5F": [20, 21]
+        },
+        "COMFORT": {
+            "1F": [20, 21],
+            "2F": [20, 21],
+            "3F": [20, 21],
+            "4F": [20, 21],
+            "5F": [20, 21]
+        }
+    },
+
+    "#AI": "",
+    "AgentMode": "EFFICIENT",
+    "SEASON": "summer",
+
+    "unit_timestep" : 10, 
+    "RL_START_TIME" : 8,
+    "RL_END_TIME": 22,
+    "DIS_OPEN_TIME": 10,
+    "DIS_CLOSE_TIME": 22,
+    "ROUND_THRESHOLD": 0.5,
+    "ROLLOUT_STEP": 1,
+
+    "ROOT_PATH": "env_daiso",
+    "DIS_DATA": "data.csv",
+
+    "AGENT_PATH": "",
+    "###AGENT_PATH format": "%m%d_%H%M",
+    "###AGENT_PATH example": "0626_1830",
+    "EPISODE_COUNT": "",
+    "###EPISODE_COUNT example": "1",
+
+    "dtype": "float32",
+    "NUM_EPISODES": 10001,
+    "TEST_SIZE": 0.1,
+    "MEMORY_CAPACITY": 320000,
+    "PeriodToSaveModels": 200,
+    "BATCH_SIZE": 256,
+    "SOFT_UPDATE_PERIOD": 500,
+    
+    "ACTOR_LR": 0.0003,
+    "CRITIC_LR": 0.0006,
+    "ALPHA_LR": 0.0001,
+
+    "ALPHA": 0.06,
+    "GAMMA": 0.99,
+    "TAU": 0.005,
+
+    "ACTION_SPACE": [5, 7, 5, 5, 5],
+    "EHP": -7500,
+
+    "lambda_cost": 1.0,
+    "lambda_temperature": 1.0,
+    "lambda_consecutive": 0.0,
+
+    "PER": false,
+    "optAlpha": false,
+    "REWARD_NORMALIZATION": true,
+    "REWARD_NORMALIZATION_Recent": false,
+    "Reward_reverse": false,
+    "useGPU": true,
+
+    "simulator_RA_model": "simple_dynamic",
+    "###simulator_RA_model_candidates": ["mlp", "lattice", "dynamic", "simple_dynamic"],
+    "simulator_RA_mlp": {
+        "1F": "model/simulator/RA/1F",
+        "2F": "model/simulator/RA/2F",
+        "3F": "model/simulator/RA/3F",
+        "4F": "model/simulator/RA/4F",
+        "5F": "model/simulator/RA/5F"
+    },
+    "simulator_RA_lattice": {
+        "1F": "model/simulator/RA_lattice/ensemble1F",
+        "2F": "model/simulator/RA_lattice/ensemble2F",
+        "3F": "model/simulator/RA_lattice/ensemble3F",
+        "4F": "model/simulator/RA_lattice/ensemble4F",
+        "5F": "model/simulator/RA_lattice/ensemble5F"
+    },
+    "simulator_pre_RA_mlp": {
+        "1F": "model/simulator/pre_RA/1F",
+        "2F": "model/simulator/pre_RA/2F",
+        "3F": "model/simulator/pre_RA/3F",
+        "4F": "model/simulator/pre_RA/4F",
+        "5F": "model/simulator/pre_RA/5F"
+    },
+    "simulator_pre_RA_lattice": {
+        "1F": "model/simulator/pre_RA_lattice/ensemble1F",
+        "2F": "model/simulator/pre_RA_lattice/ensemble2F",
+        "3F": "model/simulator/pre_RA_lattice/ensemble3F",
+        "4F": "model/simulator/pre_RA_lattice/ensemble4F",
+        "5F": "model/simulator/pre_RA_lattice/ensemble5F"
+    },
+    "simulator_HC": "model/simulator/HC/HC",
+
+    "TB_GRADIENT_DIR": "",
+    "TB_ANALYZER_DIR": ""
+}
