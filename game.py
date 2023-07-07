@@ -123,7 +123,7 @@ if __name__ == "__main__":
     summaryPath = f"{logdirpath}/{dt}_summary"  # directory 
     summaryWriter = tf.summary.create_file_writer(summaryPath)
 
-    coder = Coder(envName.name, config, logger)  
+    coder = Coder(config, envName.name, agentName.name, logger)  
     analyzer = Analyzer(envName.name, config, logger, summaryWriter)
     if envName == envName.DaisoSokcho:
         env = DaisoSokcho(phase = mode.value)
@@ -131,7 +131,10 @@ if __name__ == "__main__":
         env = gym.make(envName.value, render_mode=("human" if mode == Mode.test else None))  
 
     Agent = getattr(import_module(f"{agentName.name}"), f"{agentName.name}")
-    agent = Agent(envName.name, mode.value, config, logger, coder.observCoder.encodedDim, coder.actionCoder.encodedDim)
+    if agentName == agentName.SAC_entropy:
+        agent = Agent(envName.name, mode.value, config, logger, coder.observCoder.nNodes, coder.actionCoder.nNodes)
+    else:
+        agent = Agent(envName.name, mode.value, config, logger, coder.observCoder.encodedDim, coder.actionCoder.encodedDim)
 
     nEpisodes = config["NumOfEpisodes_toTrain"] if mode in [Mode.train, Mode.continued_train] else config["NumOfEpisodes_toTest"] 
 

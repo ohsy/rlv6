@@ -29,6 +29,7 @@ class EnvName(Enum):   # NOTE: gym env name used '-' instead of '_'
     CartPole_v1 = 'CartPole-v1'
     LunarLander_v2 = 'LunarLander-v2'
     DaisoSokcho = 'DaisoSokcho'
+    DaisoSokcho_discrete = 'DaisoSokcho_discrete'
 class AgentName(Enum):
     DQN = 'DQN'
     DDPG = 'DDPG'
@@ -91,10 +92,10 @@ class Game:
 
 def getLogger(filepath="./log.log"):
     logger = logging.getLogger("game")
-    logger.setLevel(logging.INFO) #   INFO, DEBUG
+    logger.setLevel(logging.DEBUG) #   INFO, DEBUG
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     fileHandler = logging.FileHandler(filename=filepath, mode="w")
-    fileHandler.setLevel(logging.INFO) # INFO, DEBUG
+    fileHandler.setLevel(logging.DEBUG) # INFO, DEBUG
     fileHandler.setFormatter(formatter)
     logger.addHandler(fileHandler)
     return logger
@@ -127,7 +128,7 @@ if __name__ == "__main__":
 
     coder = Coder(envName.name, config, logger)  
     analyzer = Analyzer(envName.name, config, logger, summaryWriter)
-    if envName == envName.DaisoSokcho:
+    if envName == envName.DaisoSokcho or envName == envName.DaisoSokcho_discrete:
         env = DaisoSokcho(phase = mode.value)
     else:
         env = gym.make(envName.value, render_mode=("human" if mode == Mode.test else None))  

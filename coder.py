@@ -26,7 +26,7 @@ import random
 """
 
 class NodeCoder:
-    def __init__(self, nNodes=None, low=None, high=None, scaleshift=None, possibles=None, isDecodedScalar=False):
+    def __init__(self, nNodes=None, low=None, high=None, scaleshift=None, possibles=None, isDecodedScalar=False, isStochastic=False):
         """
         Args:
             nNodes: a vector that contains the number of nodes needed for each parameter in the given vector; 1D ndarray.
@@ -38,6 +38,7 @@ class NodeCoder:
             possibles: list that contains lists of possible values for discrete parameters. [] for continuous parameters.
                     Like [[], [5, 8, 3]].
             isDecodedScalar: if True, the decoded one is a scalar; special cases like CartPole-v1
+            isStochastic: if True, decoding is stochasitc for discrete parameters; if False, deterministic
         """
         self.nNodes = [] if nNodes is None else nNodes                                # 1: continuous; '> 1': discretes 
         assert all(n >= 1 and n % 1 == 0 for n in self.nNodes), \
@@ -45,6 +46,8 @@ class NodeCoder:
         self.nParameters = len(self.nNodes)
         self.encodedDim = sum(self.nNodes)  # dimension of encoded == num of nodes for all parameters
         self.isDecodedScalar = isDecodedScalar
+        self.isStochastic = isStochastic
+    
    
         # continuous 
         self.low = np.zeros(self.nParameters, dtype=np.float32) if low is None else np.array(low)    # 'is' instead of '=='
@@ -65,7 +68,7 @@ class NodeCoder:
             vec = [vec]
 
         nodeVec = []
-        for ix in range(0, len(self.nNodes)):
+        for ix in range(len(self.nNodes)):
             if self.nNodes[ix] == 1:  # continuous
                 if self.scaleshift == 'sym_unit':
                     nodeVec.append((vec[ix] - self.low[ix]) / (self.high[ix] - self.low[ix]) * 2 - 1)    # from range (low,high) to (-1,1)
@@ -80,6 +83,27 @@ class NodeCoder:
         nodeVec = np.array(nodeVec)
         return nodeVec
 
+    def random_encoded(self):
+        """ Get a random nodeCode. 
+        """
+        nodeVec = []
+        for ix in range(len(self.nNodes)):
+            if self.nNodes[ix] == 1:  # continuous
+                if self.scaleshift == 'sym_unit':
+                    nodeVec.append(random.uniform(-1, 1))
+                elif self.scaleshift == 'unit':
+                    nodeVec.append(random.uniform(0, 1))
+                else:
+                    nodeVec.append(random.uniform(-3, 3))
+            else:  # self.nNodes[ix] > 1; discrete
+                probs = [random.uniform(0, 1) for i in range(self.nNodes[ix])]  
+                sum_probs = sum(probs)
+                probs = [prob / sum_probs for prob in probs]  # now probabilities whose sum is 1
+                nodeVec += probs
+
+        nodeVec = np.array(nodeVec)
+        return nodeVec
+
     def decode(self, nodeVec):
         """ Get vec from nodeVec. 
         Args:
@@ -87,10 +111,10 @@ class NodeCoder:
         Returns:
             vec: an environment_vector as an array of parameters; 1D ndarray 
         """
-            #   print(f"nodeVec={nodeVec}")
         vec = []
         nodeIdx = 0
-        for ix in range(0, len(self.nNodes)):
+            #   print(f"nodeVec={nodeVec}")
+        for ix in range(len(self.nNodes)):
             if self.nNodes[ix] == 1:  # continuous
                 if self.scaleshift == 'sym_unit':
                     vec.append(((nodeVec[ix] + 1) / 2) * (self.high[ix] - self.low[ix]) + self.low[ix])  # from range (-1,1) to (low,high)
@@ -100,11 +124,18 @@ class NodeCoder:
                     vec.append(nodeVec[ix])
                 nodeIdx += 1
             else:  # self.nNodes[ix] > 1; discrete
-                oneHot = nodeVec[nodeIdx : nodeIdx + self.nNodes[ix]]
-                    #   print(f"in decode:\noneHot={oneHot}")
-                    #   print(f"type(oneHot)={type(oneHot)}")
-                    #   print(f"type(oneHot[0])={type(oneHot[0])}")
-                idx = np.where(oneHot == 1)[0][0]
+                    #   oneHot = nodeVec[nodeIdx : nodeIdx + self.nNodes[ix]]
+                probs = nodeVec[nodeIdx : nodeIdx + self.nNodes[ix]]
+                    #   print(f"in decode:\probs={probs}")
+                    #   print(f"type(probs)={type(probs)}")
+                    #   print(f"type(probs[0])={type(probs[0])}")
+                if self.isStochastic: 
+                    dist = np.random.multinomial(1, probs)
+                    idx = np.argmax(dist)
+                else:
+                    idx = np.argmax(probs)
+
+                    #   print(f"idx={idx}")
                 vec.append(self.possibles[ix][idx]) 
                 nodeIdx += self.nNodes[ix]
 
@@ -117,7 +148,7 @@ class NodeCoder:
         """ returns a random environment_vector """
         vec = []
             #   print(f"self.nNodes={self.nNodes}") 
-        for ix in range(0, len(self.nNodes)):
+        for ix in range(len(self.nNodes)):
             if self.nNodes[ix] == 1:  # continuous
                 vec.append(random.uniform(self.low[ix], self.high[ix]))
                     #   print(f"vec={vec}")
@@ -135,22 +166,26 @@ class Coder:
     encode: neuralnet side => environment side 
     decode: environment side => neuralnet side 
     """
-    def __init__(self, envName, config, logger):
+    def __init__(self, config, envName, agentName, logger):
         self.logger = logger
         observ_config = config[envName]["observ"]
         action_config = config[envName]["action"]
-        self.observCoder = NodeCoder(nNodes = observ_config["nNodes"], 
-                                     low = observ_config["low"], 
-                                     high = observ_config["high"], 
-                                     possibles = observ_config["possibles"], 
-                                     scaleshift = observ_config["scaleshift"], 
-                                     isDecodedScalar = observ_config["isDecodedScalar"])
-        self.actionCoder = NodeCoder(nNodes = action_config["nNodes"], 
-                                     low = action_config["low"], 
-                                     high = action_config["high"], 
-                                     possibles = action_config["possibles"], 
-                                     scaleshift = action_config["scaleshift"], 
-                                     isDecodedScalar = action_config["isDecodedScalar"])
+        agent_config = config[agentName]
+        self.observCoder = NodeCoder(
+                nNodes = observ_config["nNodes"], 
+                low = observ_config["low"], 
+                high = observ_config["high"], 
+                possibles = observ_config["possibles"], 
+                scaleshift = observ_config["scaleshift"], 
+                isDecodedScalar = observ_config["isDecodedScalar"])
+        self.actionCoder = NodeCoder(
+                nNodes = action_config["nNodes"], 
+                low = action_config["low"], 
+                high = action_config["high"], 
+                possibles = action_config["possibles"], 
+                scaleshift = action_config["scaleshift"], 
+                isDecodedScalar = action_config["isDecodedScalar"],
+                isStochastic = agent_config["isActionStochastic"] if "isActionStochastic" in agent_config else config["isActionStochastic"]) 
 
     def experienceFrom(self, observFrEnv, actionToEnv, reward, next_observFrEnv, done, npDtype):
         observ = self.observCoder.encode(observFrEnv)

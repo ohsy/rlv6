@@ -146,6 +146,30 @@
         }
     },
 
+    "DaisoSokcho_discrete" : { 
+        "MemoryCapacity" : 10000,
+        "TargetToMonitor" : "avgReward", 
+        "sumReward_toStopTrain" : 1,
+        "avgReward_toStopTrain" : 1,
+        "#  avgReward_toStopTrain" : "1 not to stop training early",
+        "observ" : {
+            "nNodes" : [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            "low" : [0,0,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,5,5,0,0,0], 
+            "high" : [364,83,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,35,35,10,50,500],
+            "possibles" : [],
+            "scaleshift" : null, 
+            "isDecodedScalar" : false
+        },
+        "action" : {
+            "nNodes" : [6,8,6,6,6],
+            "low" : [],
+            "high" : [],
+            "possibles" : [[0,1,2,3,4,5],[0,1,2,3,4,5,6,7],[0,1,2,3,4,5],[0,1,2,3,4,5],[0,1,2,3,4,5]],
+            "scaleshift" : null, 
+            "isDecodedScalar" : false
+        }
+    },
+
     "Explorer" : "replayBufferFiller",
     "#  Explorer" : "one of [epsilonDecay, replayBufferFiller]",
     "TemperatureParameter_alpha" : 0.06,

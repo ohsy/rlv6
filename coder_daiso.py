@@ -92,7 +92,7 @@ class NodeCoder_daiso:
             #   print(f"nodeVec={nodeVec}")
         vec = []
         nodeIdx = 0
-        for ix in range(0, len(self.nNodes)):
+        for ix in range(len(self.nNodes)):
             if self.nNodes[ix] == 1:  # continuous
                 if self.scaleshift == 'sym_unit':
                     vec.append(((nodeVec[ix] + 1) / 2) * (self.high[ix] - self.low[ix]) + self.low[ix])  # from range (-1,1) to (low,high)
@@ -119,7 +119,7 @@ class NodeCoder_daiso:
         """ returns a random environment_vector """
         vec = []
             #   print(f"self.nNodes={self.nNodes}") 
-        for ix in range(0, len(self.nNodes)):
+        for ix in range(len(self.nNodes)):
             if self.nNodes[ix] == 1:  # continuous
                 vec.append(random.uniform(self.low[ix], self.high[ix]))
                     #   print(f"vec={vec}")

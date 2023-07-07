@@ -21,7 +21,7 @@ from replaybuffer import ReplayBuffer, PERBuffer
 from importlib import import_module
 from DDPG import DDPG
 
-class SAC_ec(DDPG):
+class SAC_ec(DDPG):  # entropy_continuous
     def __init__(self, envName, mode, config, logger, observDim, actionSz):
         """
         Args: actionSz: num of action parameters
