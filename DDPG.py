@@ -65,32 +65,25 @@ from importlib import import_module
 
 class DDPG(Agent):
     def __init__(self, envName, mode, config, logger, observDim, actionDim):
-        super().__init__(envName, mode, config, logger)
-        self.actor_lr = config["Actor_learningRate"]
-        self.critic_lr = config["Critic_learningRate"]
-
-        actor_hiddenUnits = config["Actor_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
-        observ_hiddenUnits = config["Critic_observationBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
-        action_hiddenUnits = config["Critic_actionBlock_hiddenUnits"]       # like [64, 'bn', 64], 'bn' for BatchNorm
-        concat_hiddenUnits = config["Critic_concatenateBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
+        self.init_parameters(envName, mode, config, logger)
 
         if mode == "train":
-            self.actor = self.build_actor(observDim, actor_hiddenUnits, actionDim, self.tfDtype)
+            self.actor = self.build_actor(observDim, self.actor_hiddenUnits, actionDim, self.tfDtype)
             self.critic1 = self.build_critic(
-                    observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype)
+                    observDim, self.observ_hiddenUnits, actionDim, self.action_hiddenUnits, self.concat_hiddenUnits, self.tfDtype)
             self.target_critic1 = self.build_critic(
-                    observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype, 
+                    observDim, self.observ_hiddenUnits, actionDim, self.action_hiddenUnits, self.concat_hiddenUnits, self.tfDtype, 
                     trainable=False)
             self.actor_optimizer = Adam(self.actor_lr)
             self.critic1_optimizer = Adam(self.critic_lr)
             if self.isTargetActor:
-                self.target_actor = self.build_actor(observDim, actor_hiddenUnits, actionDim, self.tfDtype, 
+                self.target_actor = self.build_actor(observDim, self.actor_hiddenUnits, actionDim, self.tfDtype, 
                     trainable=False)
             if self.isCritic2:
                 self.critic2 = self.build_critic(
-                        observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype)
+                        observDim, self.observ_hiddenUnits, actionDim, self.action_hiddenUnits, self.concat_hiddenUnits, self.tfDtype)
                 self.target_critic2 = self.build_critic(
-                        observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, self.tfDtype, 
+                        observDim, self.observ_hiddenUnits, actionDim, self.action_hiddenUnits, self.concat_hiddenUnits, self.tfDtype, 
                         trainable=False)
                 self.critic2_optimizer = Adam(self.critic_lr)
         elif mode == "test": 
@@ -111,6 +104,16 @@ class DDPG(Agent):
             self.actor.summary(print_fn=self.logger.info)
             self.critic1.summary(print_fn=self.logger.info)
             self.explorer.load()
+
+    def init_parameters(self, envName, mode, config, logger):
+        super().__init__(envName, mode, config, logger)
+        self.actor_lr = config["Actor_learningRate"]
+        self.critic_lr = config["Critic_learningRate"]
+
+        self.actor_hiddenUnits = config["Actor_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
+        self.observ_hiddenUnits = config["Critic_observationBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
+        self.action_hiddenUnits = config["Critic_actionBlock_hiddenUnits"]       # like [64, 'bn', 64], 'bn' for BatchNorm
+        self.concat_hiddenUnits = config["Critic_concatenateBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
 
     def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
         observ = Input(shape=(observDim,), dtype=self.tfDtype, name="observ")
@@ -240,18 +243,21 @@ class DDPG(Agent):
     def act(self, observ, actionCoder):
         """
         Args:
-            observ: 1d ndarray
+            observ: 1d ndarray of shape=(observDim)
         return:
-            action: 1d ndarray
+            action: 1d ndarray of shape=(actionDim)
         """
         if self.explorer.isReadyToExplore():
-            actionToEnv = actionCoder.random_decoded()
-            action = actionCoder.encode(actionToEnv)
+            #   actionToEnv = actionCoder.random_decoded()
+            #   action = actionCoder.encode(actionToEnv)
+            action = actionCoder.random_encoded()
         else:
             observ = tf.convert_to_tensor(observ)
             observ = tf.expand_dims(observ, axis=0)     # (1,observDim) to input to net
-            action = self.actor(observ)[0]              # actor() returns [action]
-        return action
+            action = self.actor(observ)                 # (1,actionDim)
+            action = action[0]                          # (actionDim)
+            action = action.numpy()                     # ndarray
+        return action                                   
 
     def save(self):
         self.actor.save(f"{self.savePath}/actor/")

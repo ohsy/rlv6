@@ -16,7 +16,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, Dense, BatchNormalization, Concatenate
+from tensorflow.keras.layers import Input, Dense, BatchNormalization, Concatenate, Softmax
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
@@ -71,7 +71,13 @@ class SAC_discrete(Agent):
         h = observ
         for ix, units in enumerate(hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
-        actionProb = self.dense_or_batchNorm(actionDim, "softmax", trainable=trainable, name="actionProb")(h)
+        #   actionProb = self.dense_or_batchNorm(actionDim, "softmax", trainable=trainable, name="actionProb")(h)
+        logit = self.dense_or_batchNorm(actionDim, "linear", trainable=trainable, name="logit")(h)
+        logit = tf.clip_by_value(logit, self.logit_min, self.logit_max)  # before exp() to prevent gradient explosion
+        actionProb = Softmax()(logit)
+            #   exps = tf.math.exp(logit)
+            #   sums = tf.reduce_sum(exps, axis=1, keepdims=True) + self.tiny                    # tiny to prevent NaN
+            #   actionProb = exps / sums    # softmax
 
         net = Model(inputs=observ, outputs=actionProb, name="actor")
         return net
@@ -207,7 +213,7 @@ class SAC_discrete(Agent):
             actionProb, _ = self.get_actionProb_logActionProb(observ)   # (batchSz,actionDim)
             actionProb = actionProb[0]                                  # (actionDim)
             prob = actionProb.numpy()
-            prob[0] = prob[0] + 1 - np.sum(prob)  # for case when tiny residue appears; to make sum(prob)=1
+            prob[0] = abs(prob[0] + 1 - np.sum(prob))  # for case when tiny residue appears; to make sum(prob)=1; abs for -0
             idx = np.random.choice(self.actionDim, p=prob)              # index of actionToEnv; ()
             action = np.array([1 if i == idx else 0 for i in range(self.actionDim)])  # one-hot; (actionDim)
         return action

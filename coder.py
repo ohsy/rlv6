@@ -118,31 +118,38 @@ class NodeCoder:
             if self.nNodes[ix] == 1:  # continuous
                 if self.scaleshift == 'sym_unit':
                     vec.append(((nodeVec[ix] + 1) / 2) * (self.high[ix] - self.low[ix]) + self.low[ix])  # from range (-1,1) to (low,high)
-                elif self.scaleshift == 'unit':
+                elif self.scaleshift == 'unit': 
                     vec.append(nodeVec[ix] * (self.high[ix] - self.low[ix]) + self.low[ix])              # from range (0,1) to (low,high)
                 else:
                     vec.append(nodeVec[ix])
-                nodeIdx += 1
+                nodeIdx += 1         
             else:  # self.nNodes[ix] > 1; discrete
                     #   oneHot = nodeVec[nodeIdx : nodeIdx + self.nNodes[ix]]
                 probs = nodeVec[nodeIdx : nodeIdx + self.nNodes[ix]]
                     #   print(f"in decode:\probs={probs}")
                     #   print(f"type(probs)={type(probs)}")
                     #   print(f"type(probs[0])={type(probs[0])}")
-                if self.isStochastic: 
-                    dist = np.random.multinomial(1, probs)
+                if self.isStochastic:
+                    probs = np.float64(probs)  # since multinomial casts by float64 before checking if sum of probs is 1.0
+                    residue = 1.0 - np.sum(probs)
+                    if residue != 0.0:
+                        maxIdx = np.argmax(probs)       
+                        probs[maxIdx] += residue
+                    nTrials = 1  # for self.nNodes[ix]; 1 is very stochastic; as it grows bigger, more deterministic
+                    dist = np.random.multinomial(nTrials, probs)  # one-hot vector like [0, 1, 0, 0, 0] for nTrials=1
                     idx = np.argmax(dist)
                 else:
                     idx = np.argmax(probs)
 
                     #   print(f"idx={idx}")
-                vec.append(self.possibles[ix][idx]) 
+                vec.append(self.possibles[ix][idx])
                 nodeIdx += self.nNodes[ix]
 
         vec = np.array(vec)
-        if self.isDecodedScalar:  
+        if self.isDecodedScalar:
             vec = vec[0]    # vec is a scalar
-        return vec 
+        return vec
+
 
     def random_decoded(self):
         """ returns a random environment_vector """

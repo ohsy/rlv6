@@ -22,7 +22,7 @@
     "#  Critic_concatenateBlock_hiddenUnits" : "[128, 16] for Pendulum",
 
     "SavePath" : "./model",
-    "NumOfEpisodes_toTrain" : 200, 
+    "NumOfEpisodes_toTrain" : 300, 
     "# NumOfEpisodes_toTrain" : "10000 for cartpoleV1", 
     "#  SumReward_toStopTrain" : 200,
     "#  #   SumReward_toStopTrain" : "for cartpoleV1.",
@@ -178,6 +178,8 @@
     "DQN" : {
         "Explorer" : "epsilonDecay"
     },
+    "DDPG" : {
+    },
     "SAC" : {
         "TemperatureParameter_alpha" : 0.06, 
         "isActionStochastic" : true
@@ -188,8 +190,11 @@
         "isActionStochastic" : true
     },
     "SAC_entropy" : {
-        "Explorer" : "epsilonDecay",
-        "TemperatureParameter_alpha" : 5.0
+        "Explorer" : "replayBufferFiller",
+        "TemperatureParameter_alpha" : 0.05,
+        "isActionStochastic" : false,
+        "# TemperatureParameter_alpha" : "0.05 is best(avg_reward~-0.3 for lambdas=(1,1,0)) and better than 0.5 and 5 for DaisoSokcho_discrete either with isActionStochastic=true or false, 5 is better than 0.5 and 0.05 for CartPole-v1 either for isActionStochastic=true or false, 0.05 is best and better than 0.5 and 5 for LunarLander-v2 either for isActionStochastic=true or false and isActionStochastic=false is better than true in general",
+        "# isActionStochastic" : "isActionStochastic=false is better for CartPole-v1"
     },
 
     "#  ending" : true

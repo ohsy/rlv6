@@ -137,5 +137,6 @@ class SAC_ec(DDPG):  # entropy_continuous
             observ = tf.expand_dims(observ, axis=0)         # (1,observDim) to input to net
             action, _ = self.get_action_entropy(observ)     # (batchSz,actionDim)
             action_mean = action[0][:self.actionSz]         # (actionSz)
+            action_mean = action_mean.numpy()               # ndarray
         return action_mean
 

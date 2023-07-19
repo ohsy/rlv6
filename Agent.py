@@ -70,14 +70,10 @@ class Agent:
         self.npDtype = np.dtype(config["dtype"])
         self.tfDtype = tf.convert_to_tensor(np.zeros((1,), dtype=self.npDtype)).dtype  # tf doesn't have dtype()
 
-        explorer = config["Explorer"]
-        self.alpha = config["TemperatureParameter_alpha"]
-        self.isActionStochastic = config["isActionStochastic"]  # vs. deterministic with max prob.
-        if self.__class__.__name__ in config:
-            agent_config = config[self.__class__.__name__] 
-            explorer = agent_config["Explorer"] if "Explorer" in agent_config else explorer
-            self.alpha = agent_config["TemperatureParameter_alpha"] if "TemperatureParameter_alpha" in agent_config else self.alpha
-            self.isActionStochastic = config["isActionStochastic"]  if "isActionStochastic" in agent_config else self.isActionStochastic
+        agent_config = config[self.__class__.__name__] 
+        explorer = agent_config["Explorer"] if "Explorer" in agent_config else config["Explorer"]
+        self.alpha = agent_config["TemperatureParameter_alpha"] if "TemperatureParameter_alpha" in agent_config else config["TemperatureParameter_alpha"]
+        self.isActionStochastic = agent_config["isActionStochastic"]  if "isActionStochastic" in agent_config else config["isActionStochastic"]  # vs. deterministic with max prob.
         self.alpha = tf.Variable(self.alpha, dtype=self.tfDtype)  
 
         self.isTargetActor = config["TargetActor"]
@@ -110,6 +106,8 @@ class Agent:
         self.tau = config["SoftUpdateRate_tau"] 
         self.gamma = tf.Variable(config["RewardDiscountRate_gamma"], dtype=self.tfDtype)
         self.tiny = 1e-6  # added to denominator to prevent inf; NOTE: value < 1e-6 (like 1e-7) is considered as 0
+        self.logit_min = -13  # or -20
+        self.logit_max = 1  # or 2
 
         self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm in XXX_units list 'bn'
 

@@ -1,13 +1,6 @@
 
-import time
-from collections import deque
 import tensorflow as tf
 from analyzer import Analyzer
-
-from enum import Enum
-class TargetToMonitor(Enum):
-    sumReward = 'sumReward'
-    avgReward = 'avgReward'
 
 class Analyzer_daiso(Analyzer):
     def afterTimestep(self, reward, info):

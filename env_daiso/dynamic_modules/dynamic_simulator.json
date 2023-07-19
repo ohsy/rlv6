@@ -1,0 +1,101 @@
+{
+	"E_window": 1,
+	"E_wall": 1,
+	"E_solar": 1,
+	"Ceiling": 1,
+	"Infiltration": 1,
+	"E_body": 1,
+	"E_light": 1,
+	"E_ehp": 1,
+	"intercept": 0.0,
+	"transmittancy_1F": 0.8,
+	"transmittancy": 0.2,
+	"max_trans_E_ehp": 0.2,
+	"U_value": {
+		"glass": 0.2,
+		"wall": 0.05,
+		"ceiling": 0.05
+	},
+	"Q_h": 175,
+	"Q_l": 50,
+	"one_infill": 500,
+	"vol1": 731.5,
+	"vol2": 1956.5,
+	"vol3": 1956.5,
+	"vol4": 2044,
+	"vol5": 2044,
+	"total_window": {
+		"1F": 84,
+		"2F": 154,
+		"3F": 154,
+		"4F": 154,
+		"5F": 154
+	},
+	"window_angle_degree": 90,
+	"total_wall": {
+		"1F": 98,
+		"2F": 196,
+		"3F": 196,
+		"4F": 196,
+		"5F": 196,
+		"ceiling": 623
+	},
+	"TempDiff": 1,
+	"human_ratio": {
+		"1F": 0.2,
+		"2F": 0.2,
+		"3F": 0.2,
+		"4F": 0.2,
+		"5F": 0.2
+	},
+	"longitude": 128.59,
+	"latitude": 38.19,
+	"standard_longitude": 135,
+	"solar_const": 1353,
+	"Base_Line": 0.1,
+	"south_window": {
+		"1F": 42,
+		"2F": 84,
+		"3F": 84,
+		"4F": 84,
+		"5F": 84
+	},
+	"S": {
+		"1F": 209,
+		"2F": 559,
+		"3F": 559,
+		"4F": 584,
+		"5F": 584
+	},
+	"min": {
+		"1F_temp": 16.363333,
+		"2F_temp": 18.111667,
+		"3F_temp": 19.708333,
+		"4F_temp": 19.01,
+		"5F_temp": 20.426667,
+		"instant_headcount": 0,
+		"cumulative_headcount": 0,
+		"E_ehp_1G": -42964.03,
+		"E_ehp_2G": -51199.5,
+		"E_ehp_3G": -43581.78,
+		"E_ehp_4G": -49342.92,
+		"E_ehp_5G": -24135.54
+	},
+	"max": {
+		"1F_temp": 22.141667,
+		"2F_temp": 24.971667,
+		"3F_temp": 25.92,
+		"4F_temp": 25.808333,
+		"5F_temp": 26.726667,
+		"instant_headcount": 45,
+		"cumulative_headcount": 306.05,
+		"E_ehp_1G": 0,
+		"E_ehp_2G": 0,
+		"E_ehp_3G": 0,
+		"E_ehp_4G": 0,
+		"E_ehp_5G": 0
+	},
+	"COP": -9.57,
+	"train": 10,
+	"Unit": 10
+}

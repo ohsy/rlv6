@@ -9,15 +9,16 @@ $ git add ./*.json
 $ git commit -m "first commit"
 
 user name and email configuration guides appear
+(not needed after first repository making)
 
 $ git config --global --edit
 $ git commit --amend --reset-author
 
-in github.com, make a remote repository rlv5
+in github.com, make a remote repository like rlv5
 
-$ git remote add origin https://github.com/ohsy/rlv5.git
-$ git remote -v
-$ git push -u origin main
+$ git remote add originRLv5 https://github.com/ohsy/rlv5.git  # originRLv5 is local name
+$ git remote -v     # to verify
+$ git push -u originRLv5 main
 
 A token is required. Settings > Developer settings > Personal access tokens 
 Fine grained token (the longer one) is not working. 

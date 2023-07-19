@@ -42,7 +42,7 @@ class SAC(DDPG):
 
     def get_action_logProb(self, observ, withTarget=False):
         mean, logStd = self.target_actor(observ) if withTarget else self.actor(observ)  # each (batchSz,actionDim)
-        logStd = tf.clip_by_value(logStd, self.logStd_min, self.logStd_max)             # (batchSz,actionDim)
+        logStd = tf.clip_by_value(logStd, self.logStd_min, self.logStd_max)             # (batchSz,actionDim); to prevent gradient explosion
         std = tf.exp(logStd)                                                            # (batchSz,actionDim)
 
         dist = tfp.distributions.Normal(mean, std)                                      # batchSz distributions
@@ -128,5 +128,6 @@ class SAC(DDPG):
             observ = tf.expand_dims(observ, axis=0)         # (1,observDim) to input to net
             action, _ = self.get_action_logProb(observ)     # (batchSz,actionDim)
             action = action[0]                              # (actionDim)
+            action = action.numpy()                         # ndarray
         return action
 

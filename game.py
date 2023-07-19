@@ -17,16 +17,21 @@ from collections import deque
 from coder import Coder
 from analyzer import Analyzer
 
+from env_daiso.environment import DaisoSokcho
+from coder_daiso import Coder_daiso 
+from analyzer_daiso import Analyzer_daiso 
+
 from enum import Enum
 class Mode(Enum):
     train = 'train'
     test = 'test'
     continued_train = 'continued_train'
 class EnvName(Enum):   # NOTE: gym env name used '-' instead of '_'
-    Pendulum_v1 = 'Pendulum-v1'
+    Pendulum_v1 = 'Pendulum-v1'  # reward in [-16.x, 0]
     CartPole_v1 = 'CartPole-v1'
-    LunarLander_v2 = 'LunarLander-v2'
+    LunarLander_v2 = 'LunarLander-v2'  # reward in [-a, +b]
     DaisoSokcho = 'DaisoSokcho'
+    DaisoSokcho_discrete = 'DaisoSokcho_discrete'
 class AgentName(Enum):
     DQN = 'DQN'
     DDPG = 'DDPG'
@@ -123,11 +128,13 @@ if __name__ == "__main__":
     summaryPath = f"{logdirpath}/{dt}_summary"  # directory 
     summaryWriter = tf.summary.create_file_writer(summaryPath)
 
-    coder = Coder(config, envName.name, agentName.name, logger)  
-    analyzer = Analyzer(envName.name, config, logger, summaryWriter)
-    if envName == envName.DaisoSokcho:
+    if envName in [envName.DaisoSokcho, envName.DaisoSokcho_discrete]:
+        coder = Coder_daiso(config, envName.name, agentName.name, logger)  
+        analyzer = Analyzer_daiso(envName.name, config, logger, summaryWriter)
         env = DaisoSokcho(phase = mode.value)
     else:
+        coder = Coder(config, envName.name, agentName.name, logger)  
+        analyzer = Analyzer(envName.name, config, logger, summaryWriter)
         env = gym.make(envName.value, render_mode=("human" if mode == Mode.test else None))  
 
     Agent = getattr(import_module(f"{agentName.name}"), f"{agentName.name}")

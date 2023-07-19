@@ -12,3 +12,15 @@ solution:
 
 tip: it seems that "linear" shows better performance than "tanh" for actor's mean layer's activation in SAC.
 
+problem: tape gradient for softmax in SAC_entropy is NaN after some episodes.
+solution: found that the exp(x) for large x results in gradient explosion.
+    - Use clip_by_value(x, -13, 1) for x just before exp().  # -13 and 1 is from a code. Another code uses -20 and 2.
+    - activation = "softmax" cannot be used. 
+        Use activation = "linear" and then clip_by_value() and then Softmax() layer. 
+
+tip: how to print keras tensor xxx
+import tensorflow.keras.backend as K
+xxx = K.print_tensor(xxx, message="xxx=")
+
+
+
