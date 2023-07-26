@@ -45,7 +45,12 @@
 - isTargetActor and isCritic2 are added to be able to select the architecture of Agent.
 
 - Agent_ddpg is changed into DDPG, which is used in game.py
+
+2023.07.26
+
+- target actor is removed. critic2 is always used.
 """
+
 import sys
 import json
 #   from tqdm import tqdm
@@ -59,63 +64,48 @@ from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
 from Agent import Agent
-from replaybuffer import ReplayBuffer, PERBuffer
+from replaymemory import ReplayMemory, PERMemory
 from importlib import import_module
 
 
 class DDPG(Agent):
     def __init__(self, envName, mode, config, logger, observDim, actionDim):
-        self.init_parameters(envName, mode, config, logger)
+        self.init_parameters(envName, mode, config, logger, observDim, actionDim)
 
         if mode == "train":
-            self.actor = self.build_actor(observDim, self.actor_hiddenUnits, actionDim, self.tfDtype)
-            self.critic1 = self.build_critic(
-                    observDim, self.observ_hiddenUnits, actionDim, self.action_hiddenUnits, self.concat_hiddenUnits, self.tfDtype)
-            self.target_critic1 = self.build_critic(
-                    observDim, self.observ_hiddenUnits, actionDim, self.action_hiddenUnits, self.concat_hiddenUnits, self.tfDtype, 
-                    trainable=False)
+            self.actor = self.build_actor()
+            self.critic1 = self.build_critic() 
+            self.critic2 = self.build_critic()
+            self.target_critic1 = self.build_critic(trainable=False)
+            self.target_critic2 = self.build_critic(trainable=False)
             self.actor_optimizer = Adam(self.actor_lr)
             self.critic1_optimizer = Adam(self.critic_lr)
-            if self.isTargetActor:
-                self.target_actor = self.build_actor(observDim, self.actor_hiddenUnits, actionDim, self.tfDtype, 
-                    trainable=False)
-            if self.isCritic2:
-                self.critic2 = self.build_critic(
-                        observDim, self.observ_hiddenUnits, actionDim, self.action_hiddenUnits, self.concat_hiddenUnits, self.tfDtype)
-                self.target_critic2 = self.build_critic(
-                        observDim, self.observ_hiddenUnits, actionDim, self.action_hiddenUnits, self.concat_hiddenUnits, self.tfDtype, 
-                        trainable=False)
-                self.critic2_optimizer = Adam(self.critic_lr)
+            self.critic2_optimizer = Adam(self.critic_lr)
         elif mode == "test": 
-            self.actor = load_model(f"{self.savePath}/actor/", compile=False)
+            self.actor = load_model(self.savePath_actor, compile=False)
+            self.logger.info(f"actor is loaded from {self.savePath_actor}")
             self.actor.summary(print_fn=self.logger.info)
         elif mode == "continued_train":
-            self.actor = load_model(f"{self.savePath}/actor/", compile=False)
-            self.critic1 = load_model(f"{self.savePath}/critic1/", compile=False)
-            self.target_critic1 = load_model(f"{self.savePath}/target_critic1/", compile=False)
+            self.actor = load_model(self.savePath_actor, compile=False)
+            self.critic1 = load_model(self.savePath_critic1, compile=False)
+            self.critic2 = load_model(self.savePath_critic2, compile=False)
+            self.target_critic1 = load_model(self.savePath_target_critic1, compile=False)
+            self.target_critic2 = load_model(self.savePath_target_critic2, compile=False)
             self.actor_optimizer = Adam(self.actor_lr)
             self.critic1_optimizer = Adam(self.critic_lr)
-            if self.isCritic2:
-                self.critic2 = load_model(f"{self.savePath}/critic2/", compile=False)
-                self.target_critic2 = load_model(f"{self.savePath}/target_critic2/", compile=False)
-                self.critic2_optimizer = Adam(self.critic_lr)
-            if self.isTargetActor:
-                self.target_actor = load_model(f"{self.savePath}/target_actor/", compile=False)
+            self.critic2_optimizer = Adam(self.critic_lr)
+            self.explorer.load()
             self.actor.summary(print_fn=self.logger.info)
             self.critic1.summary(print_fn=self.logger.info)
-            self.explorer.load()
 
-    def init_parameters(self, envName, mode, config, logger):
-        super().__init__(envName, mode, config, logger)
-        self.actor_lr = config["Actor_learningRate"]
-        self.critic_lr = config["Critic_learningRate"]
-
+    def init_parameters(self, envName, mode, config, logger, observDim, actionDim):
+        super().__init__(envName, mode, config, logger, observDim, actionDim)
         self.actor_hiddenUnits = config["Actor_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
         self.observ_hiddenUnits = config["Critic_observationBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
         self.action_hiddenUnits = config["Critic_actionBlock_hiddenUnits"]       # like [64, 'bn', 64], 'bn' for BatchNorm
         self.concat_hiddenUnits = config["Critic_concatenateBlock_hiddenUnits"]  # like [64, 'bn', 64], 'bn' for BatchNorm
 
-    def build_actor(self, observDim, hiddenUnits, actionDim, dtype, trainable=True):
+    def build_actor(self, observDim=self.observDim, hiddenUnits=self.actor_hiddenUnits, actionDim=self.actionDim, dtype=self.tfDtype, trainable=True):
         observ = Input(shape=(observDim,), dtype=self.tfDtype, name="observ")
         h = observ
         for ix, units in enumerate(hiddenUnits):
@@ -125,8 +115,7 @@ class DDPG(Agent):
         net = Model(inputs=observ, outputs=action, name="actor")
         return net
 
-    def build_critic(self, observDim, observ_hiddenUnits, actionDim, action_hiddenUnits, concat_hiddenUnits, 
-                     dtype, trainable=True):
+    def build_critic(self, observDim=self.observDim, observ_hiddenUnits=self.observ_hiddenUnits, actionDim=self.actionDim, action_hiddenUnits=self.action_hiddenUnits, concat_hiddenUnits=self.concat_hiddenUnits, dtype=self.tfDtype, trainable=True):
         observ_inputs = Input(shape=(observDim,), dtype=dtype, name="observ_in")
         h = observ_inputs
         for ix, units in enumerate(observ_hiddenUnits):
@@ -155,12 +144,9 @@ class DDPG(Agent):
         with tf.GradientTape() as tape:
             action = self.actor(observ)                 # (batchSz,actionDim)
             Q1 = self.critic1([observ, action])         # (batchSz,1)
-            if self.isCritic2:
-                Q2 = self.critic2([observ, action])     # (batchSz,1)
-                Q_min = tf.minimum(Q1, Q2)              # (batchSz,1)
-                actor_loss = -tf.reduce_mean(Q_min)     # ()
-            else:
-                actor_loss = -tf.reduce_mean(Q1)        # ()
+            Q2 = self.critic2([observ, action])     # (batchSz,1)
+            Q_min = tf.minimum(Q1, Q2)              # (batchSz,1)
+            actor_loss = -tf.reduce_mean(Q_min)     # ()
 
         actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
@@ -175,54 +161,40 @@ class DDPG(Agent):
             done, reward: shape=(batchSz,1)
         """
         with tf.GradientTape(persistent=True) as tape:
-            next_action = self.target_actor(next_observ) if self.isTargetActor \
-                    else self.actor(next_observ)                            # (batchSz,actionDim)
+            next_action = self.target_actor(next_observ) if self.isTargetActor else self.actor(next_observ) # (batchSz,actionDim)
             target_Q1 = self.target_critic1([next_observ, next_action])     # (batchSz,1)
-            if self.isCritic2:
-                target_Q2 = self.target_critic2([next_observ, next_action]) # (batchSz,1)
-                target_Q_min = tf.minimum(target_Q1, target_Q2)             # (batchSz,1)
-                y = reward + (1.0 - done) * self.gamma * target_Q_min       # (batchSz,1)
-                Q2 = self.critic2([observ, action])                         # (batchSz,1)
-                td_error2 = tf.square(y - Q2)                               # (batchSz,1)
-                td_error2 = importance_weights * td_error2 if self.isPER else td_error2
-                critic2_loss = tf.reduce_mean(td_error2)                    # ()
-            else:
-                y = reward + (1.0 - done) * self.gamma * target_Q1          # (batchSz,1)
-            Q1 = self.critic1([observ, action])                             # (batchSz,1)
-            td_error1 = tf.square(y - Q1)                                   # (batchSz,1)
-            td_error1 = importance_weights * td_error1 if self.isPER else td_error1
-            critic1_loss = tf.reduce_mean(td_error1)                        # ()
+            target_Q2 = self.target_critic2([next_observ, next_action]) # (batchSz,1)
+            target_Q_min = tf.minimum(target_Q1, target_Q2)             # (batchSz,1)
+            y = reward + (1.0 - done) * self.gamma * target_Q_min       # (batchSz,1)
 
+            Q1 = self.critic1([observ, action])                         # (batchSz,1)
+            td_error1 = tf.square(y - Q1)                               # (batchSz,1)
+            td_error1 = importance_weights * td_error1 if self.isPER else td_error1
+            critic1_loss = tf.reduce_mean(td_error1)                    # ()
+
+            Q2 = self.critic2([observ, action])                         # (batchSz,1)
+            td_error2 = tf.square(y - Q2)                               # (batchSz,1)
+            td_error2 = importance_weights * td_error2 if self.isPER else td_error2
+            critic2_loss = tf.reduce_mean(td_error2)                    # ()
+ 
         critic1_grads = tape.gradient(critic1_loss, self.critic1.trainable_variables)
         self.critic1_optimizer.apply_gradients(zip(critic1_grads, self.critic1.trainable_variables))
-        if self.isCritic2:
-            critic2_grads = tape.gradient(critic2_loss, self.critic2.trainable_variables)
-            self.critic2_optimizer.apply_gradients(zip(critic2_grads, self.critic2.trainable_variables))
-                #   td_error = tf.minimum(td_error1, td_error2) # (batchSz,1)
-            return critic1_loss, td_error1, critic2_loss
-        else:
-            return critic1_loss, td_error1
+
+        critic2_grads = tape.gradient(critic2_loss, self.critic2.trainable_variables)
+        self.critic2_optimizer.apply_gradients(zip(critic2_grads, self.critic2.trainable_variables))
+            #   td_error = tf.minimum(td_error1, td_error2) # (batchSz,1)
+        return critic1_loss, critic2_loss, td_error1
 
     #   @tf.function  # NOTE: recommended not to use tf.function. zip problem?? And not much enhancement. 
     def soft_update(self):
-        source1 = self.critic1.variables
-        target1 = self.target_critic1.variables
-        for target_param1, param1 in zip(target1, source1):
+        for target_param1, param1 in zip(self.target_critic1.variables, self.critic1.variables):
             target_param1.assign(target_param1 * (1.0 - self.tau) + param1 * self.tau)
-        if self.isCritic2:
-            source2 = self.critic2.variables
-            target2 = self.target_critic2.variables
-            for target_param2, param2 in zip(target2, source2):
-                target_param2.assign(target_param2 * (1.0 - self.tau) + param2 * self.tau)
-        if self.isTargetActor:
-            source0 = self.actor.variables
-            target0 = self.target_actor.variables  
-            for target_param0, param0 in zip(target0, source0):
-                target_param0.assign(target_param0 * (1.0 - self.tau) + param0 * self.tau)
+        for target_param2, param2 in zip(self.target_critic2.variables, self.critic2.variables):
+            target_param2.assign(target_param2 * (1.0 - self.tau) + param2 * self.tau)
 
     #   @tf.function  # NOTE recommended not to use tf.function. cross function problem?? And not much enhancement.
     def train(self, batch, importance_weights):
-        loss_error = self.update_critic(
+        critic1_loss, critic2_loss, td_error1 = self.update_critic(
                 batch.observ,
                 batch.action,
                 batch.reward,
@@ -232,11 +204,6 @@ class DDPG(Agent):
         )
         actor_loss = self.update_actor(batch.observ)
         self.soft_update()
-
-        if self.isCritic2: 
-            critic1_loss, td_error1, critic2_loss = loss_error
-        else: 
-            critic1_loss, td_error1 = loss_error
         return (critic1_loss, actor_loss), td_error1  # (,) to be consistent with DQN return
 
     #   @tf.function  # NOTE recommended not to use tf.function. And not much enhancement.
@@ -248,8 +215,6 @@ class DDPG(Agent):
             action: 1d ndarray of shape=(actionDim)
         """
         if self.explorer.isReadyToExplore():
-            #   actionToEnv = actionCoder.random_decoded()
-            #   action = actionCoder.encode(actionToEnv)
             action = actionCoder.random_encoded()
         else:
             observ = tf.convert_to_tensor(observ)
@@ -260,15 +225,12 @@ class DDPG(Agent):
         return action                                   
 
     def save(self):
-        self.actor.save(f"{self.savePath}/actor/")
-        self.critic1.save(f"{self.savePath}/critic1/")
-        self.target_critic1.save(f"{self.savePath}/target_critic1/")
-        if self.isTargetActor:
-            self.target_actor.save(f"{self.savePath}/target_actor/")
-        if self.isCritic2:
-            self.critic2.save(f"{self.savePath}/critic2/")
-            self.target_critic2.save(f"{self.savePath}/target_critic2/")
-        self.replayBuffer.save()
+        self.actor.save(self.savePath_actor)
+        self.critic1.save(self.savePath_critic1)
+        self.critic2.save(self.savePath_critic2)
+        self.target_critic1.save(self.savePath_target_critic1)
+        self.target_critic2.save(self.savePath_target_critic2)
+        self.replayMemory.save(self.savePath_replayMemory)
         self.explorer.save()
 
     def summary(self):

@@ -58,15 +58,17 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
-from replaybuffer import ReplayBuffer, PERBuffer
+from replaymemory import ReplayMemory, PERMemory
 from importlib import import_module
 
 
 class Agent:
-    def __init__(self, envName, mode, config, logger):
+    def __init__(self, envName, mode, config, logger, observDim, actionDim):
         self.mode = mode  # config["Mode"]
         self.config = config
         self.logger = logger
+        self.observDim = observDim
+        self.actionDim = actionDim
         self.npDtype = np.dtype(config["dtype"])
         self.tfDtype = tf.convert_to_tensor(np.zeros((1,), dtype=self.npDtype)).dtype  # tf doesn't have dtype()
 
@@ -76,19 +78,22 @@ class Agent:
         self.isActionStochastic = agent_config["isActionStochastic"]  if "isActionStochastic" in agent_config else config["isActionStochastic"]  # vs. deterministic with max prob.
         self.alpha = tf.Variable(self.alpha, dtype=self.tfDtype)  
 
-        self.isTargetActor = config["TargetActor"]
-        self.isCritic2 = config["Critic2"]
         self.savePath = f"{config['SavePath']}/{envName}/{self.__class__.__name__}"
         self.isRewardNorm = config["RewardNormalization"]
         self.isPER = config["PER"]
 
+        self.savePath_replayMemory = f"{self.savePath}/replayBuffer.json"
         self.memoryCapacity = config[envName]["MemoryCapacity"]
-        self.replayBuffer = PERBuffer(mode, self.memoryCapacity, self.savePath, self.isRewardNorm, self.npDtype) if self.isPER \
-                       else ReplayBuffer(mode, self.memoryCapacity, self.savePath, self.isRewardNorm, self.npDtype)
+        if mode == "train":
+            self.replayMemory = PERMemory(self.memoryCapacity, self.isRewardNorm, self.npDtype) if self.isPER \
+                   else ReplayMemory(self.memoryCapacity, self.isRewardNorm, self.npDtype)
+        elif mode == "continued_train":
+            self.replayMemory = PERMemory.load(self.savePath_replayMemory, self.memoryCapacity, self.isRewardNorm, self.npDtype) if self.isPER \
+                   else ReplayMemory.load(self.savePath_replayMemory, self.memoryCapacity, self.isRewardNorm, self.npDtype)
 
         explorerModule = import_module(f"explorer")
         Explorer = getattr(explorerModule, f"Explorer_{explorer}")
-        self.explorer = Explorer(mode, config, self.savePath, self.replayBuffer)
+        self.explorer = Explorer(mode, config, self.savePath, self.replayMemory)
         self.memoryCnt_toStartTrain = self.explorer.get_memoryCnt_toStartTrain()
 
         if self.isRewardNorm:
@@ -110,6 +115,19 @@ class Agent:
         self.logit_max = 1  # or 2
 
         self.batchNormInUnitsList = config["BatchNorm_inUnitsList"]  # to represent batchNorm in XXX_units list 'bn'
+
+        self.lr = config["LearningRate"]
+        self.actor_lr = config["Actor_learningRate"]
+        self.critic_lr = config["Critic_learningRate"]
+
+        self.savePath_dqn = f"{self.savePath}/dqn"
+        self.savePath_target_dqn = f"{self.savePath}/target_dqn"
+        self.savePath_actor = f"{self.savePath}/actor"
+        self.savePath_critic1 = f"{self.savePath}/critic1"
+        self.savePath_critic2 = f"{self.savePath}/critic2"
+        self.savePath_target_critic1 = f"{self.savePath}/target_critic1"
+        self.savePath_target_critic2 = f"{self.savePath}/target_critic2"
+
 
     def dense_or_batchNorm(self, units, activation, use_bias=True, trainable=True, name=None):
         """
@@ -133,8 +151,8 @@ class Agent:
 
     def isReadyToTrain(self):
         b1 = self.mode in ["train", "continued_train"]
-        b2 = self.replayBuffer.memoryCnt > self.memoryCnt_toStartTrain
-        b3 = self.replayBuffer.memoryCnt > self.batchSz
+        b2 = self.replayMemory.memoryCnt > self.memoryCnt_toStartTrain
+        b3 = self.replayMemory.memoryCnt > self.batchSz
         #   b4 = self.actCnt % 1 == 0
         return b1 and b2 and b3  #   and b4
 

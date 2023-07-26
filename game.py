@@ -62,15 +62,15 @@ class Game:
 
                 done = (terminated or truncated)  # bool
                 experience = coder.experienceFrom(observFrEnv, actionToEnv, reward, next_observFrEnv, done, agent.npDtype)
-                agent.replayBuffer.remember(experience)
+                agent.replayMemory.remember(experience)
  
                 if agent.isReadyToTrain():
-                    batch, indices, importance_weights = agent.replayBuffer.sample(agent.batchSz)
+                    batch, indices, importance_weights = agent.replayMemory.sample(agent.batchSz)
                     #   print(f"batch=\n{batch}")
                     loss, td_error = agent.train(batch, importance_weights)
 
                     if agent.isPER == True:
-                        agent.replayBuffer.update_priorities(indices, td_error)
+                        agent.replayMemory.update_priorities(indices, td_error)
                     analyzer.afterTrain(loss, agent)
 
                 analyzer.afterTimestep(reward, info)

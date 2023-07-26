@@ -3,11 +3,11 @@ import math
 import random
 
 class Explorer_epsilonDecay:
-    def __init__(self, mode, config, savePath, replayBuffer=None):  # replayBuffer dummy
+    def __init__(self, mode, config, savePath, replayMemory=None):  # replayMemory dummy
         self.mode = mode
         self.config = config
         self.savePath = savePath
-        self.replayBuffer = replayBuffer  # only to get capacity
+        self.replayMemory = replayMemory  # only to get capacity
 
         self.filePath = f"{self.savePath}/epsilonDecay.txt"
         self.MemoryRatio_toStartTrain = 0.001
@@ -18,7 +18,7 @@ class Explorer_epsilonDecay:
         self.epsilonDecayCnt = 0 
             #   self.epsilonDecay = (self.epsilonInit - self.epsilonMin) / self.epsilonMaxActCount
         self.epsilonDecay = config["EpsilonDecay"]  
-            # so that epsilonDecay**(repalyBuffer.capacity/2) ~ epsilonMin; ex. 0.999**4600 ~ 0.01
+            # so that epsilonDecay**(repalyMemory.capacity/2) ~ epsilonMin; ex. 0.999**4600 ~ 0.01
 
         if mode == "continued_train":
             self.load()
@@ -48,21 +48,21 @@ class Explorer_epsilonDecay:
 
     def get_memoryCnt_toStartTrain(self):
         memoryRatio_toStartTrain = 0.001
-        memoryCnt_toStartTrain = int(memoryRatio_toStartTrain * self.replayBuffer.capacity)
+        memoryCnt_toStartTrain = int(memoryRatio_toStartTrain * self.replayMemory.capacity)
         return memoryCnt_toStartTrain
 
 
-class Explorer_replayBufferFiller:
-    def __init__(self, mode, config, savePath, replayBuffer):
+class Explorer_replayMemoryFiller:
+    def __init__(self, mode, config, savePath, replayMemory):
         self.mode = mode
         self.savePath = savePath
 
-        self.replayBuffer = replayBuffer  # only to get memoryCnt
-        self.memoryCnt_toFillWithRandomAction = int(config["MemoryRatio_toFillWithRandomAction"] * replayBuffer.capacity)
+        self.replayMemory = replayMemory  # only to get memoryCnt
+        self.memoryCnt_toFillWithRandomAction = int(config["MemoryRatio_toFillWithRandomAction"] * replayMemory.capacity)
 
     def isReadyToExplore(self):
         b1 = self.mode in ["train", "continued_train"]
-        b2 = self.replayBuffer.memoryCnt < self.memoryCnt_toFillWithRandomAction
+        b2 = self.replayMemory.memoryCnt < self.memoryCnt_toFillWithRandomAction
         return b1 and b2
 
     def save(self):

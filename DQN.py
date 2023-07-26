@@ -29,7 +29,7 @@ from tensorflow.keras.layers import Input, Dense, BatchNormalization
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
-from replaybuffer import ReplayBuffer, PERBuffer
+from replaymemory import ReplayMemory, PERMemory
 from importlib import import_module
 from Agent import Agent
 
@@ -37,9 +37,6 @@ from Agent import Agent
 class DQN(Agent):
     def __init__(self, envName, mode, config, logger, observDim, actionDim):
         super().__init__(envName, mode, config, logger)
-        self.actionDim = actionDim
-        self.lr = config["DQN_learningRate"]
-
         hiddenUnits = config["DQN_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
 
         if mode == "train":
@@ -47,14 +44,14 @@ class DQN(Agent):
             self.target_dqn = self.build_dqn(observDim, hiddenUnits, actionDim, self.tfDtype, trainable=False)
             self.optimizer = Adam(self.lr)
         elif mode == "test": 
-            self.dqn = load_model(f"{self.savePath}/dqn/", compile=False)
+            self.dqn = load_model(self.savePath_dqn, compile=False)
             self.dqn.summary(print_fn=self.logger.info)
         elif mode == "continued_train":
-            self.dqn = load_model(f"{self.savePath}/dqn/", compile=False)
-            self.target_dqn = load_model(f"{self.savePath}/target_dqn/", compile=False)
+            self.dqn = load_model(self.savePath_dqn, compile=False)
+            self.target_dqn = load_model(self.savePath_target_dqn, compile=False)
             self.optimizer = Adam(self.lr)
-            self.dqn.summary(print_fn=self.logger.info)
             self.explorer.load()
+            self.dqn.summary(print_fn=self.logger.info)
 
     def build_dqn(self, observDim, hiddenUnits, actionDim, dtype, trainable=True): 
         observ = Input(shape=(observDim,), dtype=dtype, name="inputs")
@@ -150,9 +147,9 @@ class DQN(Agent):
         return action
     
     def save(self):
-        self.dqn.save(f"{self.savePath}/dqn/")
-        self.target_dqn.save(f"{self.savePath}/target_dqn/")
-        self.replayBuffer.save()
+        self.dqn.save(self.savePath_dqn)
+        self.target_dqn.save(self.savePath_target_dqn)
+        self.replayMemory.save(self.savePath_replayMemory)
         self.explorer.save()
 
     def summary(self):

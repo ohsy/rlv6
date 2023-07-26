@@ -17,7 +17,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
-from replaybuffer import ReplayBuffer, PERBuffer
+from replaymemory import ReplayMemory, PERMemory
 from importlib import import_module
 from DDPG import DDPG
 
@@ -163,7 +163,7 @@ class SAC_entropy(DDPG):
         if self.isCritic2:
             self.critic2.save(f"{self.savePath}/critic2/")
             self.target_critic2.save(f"{self.savePath}/target_critic2/")
-        self.replayBuffer.save()
+        self.replayMemory.save()
         self.explorer.save()
 
     def summary(self):

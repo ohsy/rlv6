@@ -25,25 +25,36 @@ class NpDecoder(json.JSONDecoder):   # TEMP
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
 
-class ReplayBuffer:
-    def __init__(self, mode, capacity, savePath, isRewardNorm, npDtype):
+class ReplayMemory:
+    experienceTuple = namedtuple("experience", field_names=["observ","action","reward","next_observ","done"])
+
+    def __init__(self, capacity=0, isRewardNorm=True, npDtype=np.float32):
         """
         experience is namedtuple ("experience", field_names=["observ","action","reward","next_observ","done"])
         where each field is an ndarray of numbers like float(observ, action, reward) or int(action or done).
         """
-        self.mode = mode
         self.capacity = capacity
-        self.filePath = f"{savePath}/replayBuffer.json"
         self.isRewardNorm = isRewardNorm
         self.npDtype = npDtype
 
         self.tiny = 1e-6
-        if self.mode == 'continued_train':
-            self.buffer = self.load()
-        else:
-            self.buffer = deque(maxlen=self.capacity)
+        self.buffer = deque(maxlen=self.capacity)
         self.memoryCnt = len(self.buffer)
-        self.experienceTuple = namedtuple("experience", field_names=["observ","action","reward","next_observ","done"])
+
+    @classmethod
+    def load(cls, path, capacity=0, isRewardNorm=True, npDtype=np.float32):
+        mem = ReplayMemory(capacity, isRewardNorm, npDtype)
+        with open(path, 'rt') as fp:
+            experiences = [ 
+                    (   np.array(ex[0], dtype=self.npDtype), 
+                        np.array(ex[1], dtype=self.npDtype),
+                        np.array(ex[2], dtype=self.npDtype), 
+                        np.array(ex[3], dtype=self.npDtype), 
+                        np.array(ex[4], dtype=self.npDtype)
+                    ) for ex in json.load(fp)
+            ]  # json.load() returns a list of lists of lists
+        mem.buffer = deque(experiences, maxlen=capacity)
+        return mem
 
     def __len__(self):
         return len(self.buffer)
@@ -60,25 +71,14 @@ class ReplayBuffer:
         self.buffer.append(experience)
         self.memoryCnt = len(self.buffer)
 
-    def save(self):
-        """ field as a list. experience as a list of lists.  buffer as a list of lists of lists.  """
-        with open(f"{self.filePath}", 'wt') as fp:
+    def save(self, path):
+        """ dump self.buffer as json file.
+            field as a list. experience as a list of lists.  buffer as a list of lists of lists.  
+        """
+        with open(path, 'wt') as fp:
             json.dump(list(self.buffer), fp, cls=NpEncoder) 
 
-    def load(self):
-        with open(f"{self.filePath}", 'rt') as fp:
-            experiences = [ 
-                    (   np.array(ex[0], dtype=self.npDtype), 
-                        np.array(ex[1], dtype=self.npDtype),
-                        np.array(ex[2], dtype=self.npDtype), 
-                        np.array(ex[3], dtype=self.npDtype), 
-                        np.array(ex[4], dtype=self.npDtype)
-                    ) for ex in json.load(fp)
-            ]  # json.load() returns a list of lists of lists
-            buffer = deque(experiences, maxlen=self.capacity)
-        return buffer
-
-class PERBuffer(ReplayBuffer):
+class PERMemory(ReplayMemory):
     def __init__(self, mode, capacity, isRewardNorm, npDtype):
         super().__init__(mode, capacity, isRewardNorm, npDtype)
         self.priorities = deque(maxlen=capacity)
