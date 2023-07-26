@@ -87,10 +87,9 @@ class Agent:
         if mode == "train":
             self.replayMemory = PERMemory(self.memoryCapacity, self.isRewardNorm, self.npDtype) if self.isPER \
                    else ReplayMemory(self.memoryCapacity, self.isRewardNorm, self.npDtype)
-        elif mode == "continued_train":
+        elif mode in ["test","continued_train"]:
             self.replayMemory = PERMemory.load(self.savePath_replayMemory, self.memoryCapacity, self.isRewardNorm, self.npDtype) if self.isPER \
                    else ReplayMemory.load(self.savePath_replayMemory, self.memoryCapacity, self.isRewardNorm, self.npDtype)
-
         explorerModule = import_module(f"explorer")
         Explorer = getattr(explorerModule, f"Explorer_{explorer}")
         self.explorer = Explorer(mode, config, self.savePath, self.replayMemory)

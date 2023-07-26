@@ -169,8 +169,8 @@
         }
     },
 
-    "Explorer" : "replayBufferFiller",
-    "#  Explorer" : "one of [epsilonDecay, replayBufferFiller]",
+    "Explorer" : "replayMemoryFiller",
+    "#  Explorer" : "one of [epsilonDecay, replayMemoryFiller]",
     "TemperatureParameter_alpha" : 0.06,
     "isActionStochastic" : false,
 
@@ -189,7 +189,7 @@
         "isActionStochastic" : true
     },
     "SAC_entropy" : {
-        "Explorer" : "replayBufferFiller",
+        "Explorer" : "replayMemoryFiller",
         "TemperatureParameter_alpha" : 0.05,
         "isActionStochastic" : false,
         "# TemperatureParameter_alpha" : "0.05 is best(avg_reward~-0.3 for lambdas=(1,1,0)) and better than 0.5 and 5 for DaisoSokcho_discrete either with isActionStochastic=true or false, 5 is better than 0.5 and 0.05 for CartPole-v1 either for isActionStochastic=true or false, 0.05 is best and better than 0.5 and 5 for LunarLander-v2 either for isActionStochastic=true or false and isActionStochastic=false is better than true in general",

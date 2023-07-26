@@ -46,11 +46,11 @@ class ReplayMemory:
         mem = ReplayMemory(capacity, isRewardNorm, npDtype)
         with open(path, 'rt') as fp:
             experiences = [ 
-                    (   np.array(ex[0], dtype=self.npDtype), 
-                        np.array(ex[1], dtype=self.npDtype),
-                        np.array(ex[2], dtype=self.npDtype), 
-                        np.array(ex[3], dtype=self.npDtype), 
-                        np.array(ex[4], dtype=self.npDtype)
+                    (   np.array(ex[0], dtype=mem.npDtype), 
+                        np.array(ex[1], dtype=mem.npDtype),
+                        np.array(ex[2], dtype=mem.npDtype), 
+                        np.array(ex[3], dtype=mem.npDtype), 
+                        np.array(ex[4], dtype=mem.npDtype)
                     ) for ex in json.load(fp)
             ]  # json.load() returns a list of lists of lists
         mem.buffer = deque(experiences, maxlen=capacity)

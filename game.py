@@ -153,10 +153,10 @@ if __name__ == "__main__":
     logger.info(f"env observation space: {env.observation_space}")
     logger.info(f"coder = {coder.__class__.__name__}")
     logger.info(f"analyzer = {analyzer.__class__.__name__}")
+    logger.info(f"nEpisodes = {nEpisodes}")
     logger.info(f"explorer = {agent.explorer.__class__.__name__}")
     logger.info(f"memoryCapacity = {agent.memoryCapacity}")
     logger.info(f"memoryCnt_toStartTrain = {agent.memoryCnt_toStartTrain}")
-    logger.info(f"nEpisodes = {nEpisodes}")
 
     game = Game(config)
     game.run(nEpisodes, mode, env, agent, coder, analyzer)

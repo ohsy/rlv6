@@ -26,7 +26,7 @@ from importlib import import_module
 from Agent import Agent
 
 
-class SAC_discrete(Agent):
+class SAC_discrete(DDPG):
     def __init__(self, envName, mode, config, logger, observDim, actionDim):
         super().__init__(envName, mode, config, logger, observDim, actionDim)
         self.actor_hiddenUnits = config["Actor_hiddenUnits"]     # like [64, 'bn', 64], 'bn' for BatchNorm
