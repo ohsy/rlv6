@@ -64,7 +64,11 @@ class ReplayMemory:
         indices = np.random.choice(self.memoryCnt, size=batch_size)
         observs, actions, rewards, next_observs, done = zip(*[self.buffer[ix] for ix in indices]) # tuple of ndarrays
         experiences = self.experienceTuple(
-                np.array(observs), np.array(actions), np.array(rewards), np.array(next_observs), np.array(done)) 
+                np.array(observs, dtype=self.npDtype), 
+                np.array(actions, dtype=self.npDtype), 
+                np.array(rewards, dtype=self.npDtype), 
+                np.array(next_observs, dtype=self.npDtype), 
+                np.array(done, dtype=self.npDtype)) 
         return experiences, indices, None  # TEMP: None for importance_weights
 
     def remember(self, experience):

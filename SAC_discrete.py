@@ -23,40 +23,14 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import TensorBoard
 from replaymemory import ReplayMemory, PERMemory
 from importlib import import_module
-from Agent import Agent
+from ActorCritic import ActorCritic
 
 
-class SAC_discrete(DDPG):
+class SAC_discrete(ActorCritic):
     def __init__(self, envName, mode, config, logger, observDim, actionDim):
-        super().__init__(envName, mode, config, logger, observDim, actionDim)
         self.actor_hiddenUnits = config["Actor_hiddenUnits"]     # like [64, 'bn', 64], 'bn' for BatchNorm
         self.critic_hiddenUnits = config["Critic_hiddenUnits"]   # like [64, 'bn', 64], 'bn' for BatchNorm
-
-        if mode == "train":
-            self.actor = self.build_actor()
-            self.critic1 = self.build_critic()
-            self.critic2 = self.build_critic()
-            self.target_critic1 = self.build_critic(trainable=False)
-            self.target_critic2 = self.build_critic(trainable=False)
-            self.actor_optimizer = Adam(self.actor_lr)
-            self.critic1_optimizer = Adam(self.critic_lr)
-            self.critic2_optimizer = Adam(self.critic_lr)
-        elif mode == "test": 
-            self.actor = load_model(self.savePath_actor, compile=False)
-            self.logger.info(f"actor is loaded from {self.savePath_actor}")
-            self.actor.summary(print_fn=self.logger.info)
-        elif mode == "continued_train":
-            self.actor = load_model(self.savePath_actor, compile=False)
-            self.critic1 = load_model(self.savePath_critic1, compile=False)
-            self.critic2 = load_model(self.savePath_critic2, compile=False)
-            self.target_critic1 = load_model(self.savePath_target_critic1, compile=False)
-            self.target_critic2 = load_model(self.savePath_target_critic2, compile=False)
-            self.actor_optimizer = Adam(self.actor_lr)
-            self.critic1_optimizer = Adam(self.critic_lr)
-            self.critic2_optimizer = Adam(self.critic_lr)
-            self.explorer.load()
-            self.actor.summary(print_fn=self.logger.info)
-            self.critic1.summary(print_fn=self.logger.info)
+        super().__init__(envName, mode, config, logger, observDim, actionDim)
 
     def build_actor(self, observDim=self.observDim, hiddenUnits=self.actor_hiddenUnits, actionDim=self.actionDim, dtype=self.tfDtype, trainable=True):
         observ = Input(shape=(observDim,), dtype=dtype, name="observ")
@@ -142,43 +116,6 @@ class SAC_discrete(DDPG):
             #   td_error = tf.minimum(td_error1, td_error2)             # (batchSz,1)
         return critic1_loss, critic2_loss, td_error1
 
-
-    #   @tf.function  # NOTE: recommended not to use tf.function. zip problem?? And not much enhancement.
-    def soft_update(self):
-        source1 = self.critic1.variables
-        target1 = self.target_critic1.variables
-        for target_param1, param1 in zip(target1, source1):
-            target_param1.assign(target_param1 * (1.0 - self.tau) + param1 * self.tau)
-        if self.isCritic2:
-            source2 = self.critic2.variables
-            target2 = self.target_critic2.variables
-            for target_param2, param2 in zip(target2, source2):
-                target_param2.assign(target_param2 * (1.0 - self.tau) + param2 * self.tau)
-        if self.isTargetActor:
-            source0 = self.actor.variables
-            target0 = self.target_actor.variables
-            for target_param0, param0 in zip(target0, source0):
-                target_param0.assign(target_param0 * (1.0 - self.tau) + param0 * self.tau)
-
-    #   @tf.function  # NOTE recommended not to use tf.function. cross function problem?? And not much enhancement.
-    def train(self, batch, importance_weights):
-        loss_error = self.update_critic(
-                batch.observ,
-                batch.action,
-                batch.reward,
-                batch.next_observ,
-                batch.done,
-                importance_weights
-        )
-        actor_loss = self.update_actor(batch.observ)
-        self.soft_update()
-
-        if self.isCritic2:
-            critic1_loss, td_error1, critic2_loss = loss_error
-        else:
-            critic1_loss, td_error1 = loss_error
-        return (critic1_loss, actor_loss), td_error1  # (,) to be consistent with DQN return
-
     #   @tf.function  # NOTE recommended not to use tf.function. And not much enhancement.
     def act(self, observ, actionCoder):
         """
@@ -188,8 +125,7 @@ class SAC_discrete(DDPG):
             action: shape=(observDim)
         """
         if self.explorer.isReadyToExplore():
-            actionToEnv = actionCoder.random_decoded()
-            action = actionCoder.encode(actionToEnv)
+            actionToEnv = actionCoder.random_encoded()
         else:
             observ = tf.convert_to_tensor(observ)
             observ = tf.expand_dims(observ, axis=0)                     # (1,observDim) to input to net
@@ -200,20 +136,4 @@ class SAC_discrete(DDPG):
             idx = np.random.choice(self.actionDim, p=prob)              # index of actionToEnv; ()
             action = np.array([1 if i == idx else 0 for i in range(self.actionDim)])  # one-hot; (actionDim)
         return action
-
-    def save(self):
-        self.actor.save(f"{self.savePath}/actor/")
-        self.critic1.save(f"{self.savePath}/critic1/")
-        self.target_critic1.save(f"{self.savePath}/target_critic1/")
-        if self.isTargetActor:
-            self.target_actor.save(f"{self.savePath}/target_actor/")
-        if self.isCritic2:
-            self.critic2.save(f"{self.savePath}/critic2/")
-            self.target_critic2.save(f"{self.savePath}/target_critic2/")
-        self.replayMemory.save()
-        self.explorer.save()
-
-    def summary(self):
-        self.actor.summary(print_fn=self.logger.info)   # to print in logger file
-        self.critic1.summary(print_fn=self.logger.info) # to print in logger file
 

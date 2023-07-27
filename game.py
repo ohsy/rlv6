@@ -37,7 +37,7 @@ class AgentName(Enum):
     DDPG = 'DDPG'
     SAC = 'SAC'
     SAC_discrete = 'SAC_discrete'
-    SAC_entropy = 'SAC_entropy'
+    SAC_multi = 'SAC_multi'
     SAC_ec = 'SAC_ec'  # entropy_continuous
 
 
@@ -94,10 +94,10 @@ class Game:
 
 def getLogger(filepath="./log.log"):
     logger = logging.getLogger("game")
-    logger.setLevel(logging.INFO) #   INFO, DEBUG
+    logger.setLevel(logging.DEBUG) #   INFO, DEBUG
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     fileHandler = logging.FileHandler(filename=filepath, mode="w")
-    fileHandler.setLevel(logging.INFO) # INFO, DEBUG
+    fileHandler.setLevel(logging.DEBUG) # INFO, DEBUG
     fileHandler.setFormatter(formatter)
     logger.addHandler(fileHandler)
     return logger
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         env = gym.make(envName.value, render_mode=("human" if mode == Mode.test else None))  
 
     Agent = getattr(import_module(f"{agentName.name}"), f"{agentName.name}")
-    if agentName == agentName.SAC_entropy:
+    if agentName == agentName.SAC_multi:
         agent = Agent(envName.name, mode.value, config, logger, coder.observCoder.nNodes, coder.actionCoder.nNodes)
     else:
         agent = Agent(envName.name, mode.value, config, logger, coder.observCoder.encodedDim, coder.actionCoder.encodedDim)

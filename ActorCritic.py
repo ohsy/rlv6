@@ -98,20 +98,19 @@ class ActorCritic(Agent):
             self.actor.summary(print_fn=self.logger.info)
             self.critic1.summary(print_fn=self.logger.info)
 
+    """
     def build_actor(self):
         pass
 
     def build_critic(self, trainable=True):
         pass
 
-    @tf.function
     def update_actor(self, observ):
         pass
 
-    @tf.function
     def update_critic(self, observ, action, reward, next_observ, done, importance_weights):
         pass
-
+    """
 
     #   @tf.function  # NOTE: recommended not to use tf.function. zip problem?? And not much enhancement. 
     def soft_update(self):
@@ -144,6 +143,7 @@ class ActorCritic(Agent):
         """
         if self.explorer.isReadyToExplore():
             action = actionCoder.random_encoded()
+            self.logger.debug(f"random action={action}")
         else:
             observ = tf.convert_to_tensor(observ)
             observ = tf.expand_dims(observ, axis=0)     # (1,observDim) to input to net

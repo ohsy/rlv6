@@ -26,7 +26,7 @@ import random
 """
 
 class NodeCoder:
-    def __init__(self, nNodes=None, low=None, high=None, scaleshift=None, possibles=None, isDecodedScalar=False, isStochastic=False):
+    def __init__(self, nNodes=None, low=None, high=None, scaleshift=None, possibles=None, isDecodedScalar=False, isStochastic=False, isOnehot=True):
         """
         Args:
             nNodes: a vector that contains the number of nodes needed for each parameter in the given vector; 1D ndarray.
@@ -39,6 +39,7 @@ class NodeCoder:
                     Like [[], [5, 8, 3]].
             isDecodedScalar: if True, the decoded one is a scalar; special cases like CartPole-v1
             isStochastic: if True, decoding is stochasitc for discrete parameters; if False, deterministic
+            isOnehot: if True, discrete encoded is of one-hot vector
         """
         self.nNodes = [] if nNodes is None else nNodes                                # 1: continuous; '> 1': discretes 
         assert all(n >= 1 and n % 1 == 0 for n in self.nNodes), \
@@ -47,7 +48,7 @@ class NodeCoder:
         self.encodedDim = sum(self.nNodes)  # dimension of encoded == num of nodes for all parameters
         self.isDecodedScalar = isDecodedScalar
         self.isStochastic = isStochastic
-    
+        self.isOnehot = isOnehot
    
         # continuous 
         self.low = np.zeros(self.nParameters, dtype=np.float32) if low is None else np.array(low)    # 'is' instead of '=='
@@ -96,10 +97,14 @@ class NodeCoder:
                 else:
                     nodeVec.append(random.uniform(-3, 3))
             else:  # self.nNodes[ix] > 1; discrete
-                probs = [random.uniform(0, 1) for i in range(self.nNodes[ix])]  
-                sum_probs = sum(probs)
-                probs = [prob / sum_probs for prob in probs]  # now probabilities whose sum is 1
-                nodeVec += probs
+                if self.isOnehot:
+                    idx = random.choice(range(self.nNodes[ix])) 
+                    nodeVec += [1 if i == idx else 0 for i in range(self.nNodes[ix])]  # one-hot vector
+                else:
+                    probs = [random.uniform(0, 1) for i in range(self.nNodes[ix])]
+                    sum_probs = sum(probs)
+                    probs = [prob / sum_probs for prob in probs]  # now probabilities whose sum is 1
+                    nodeVec += probs
 
         nodeVec = np.array(nodeVec)
         return nodeVec
@@ -124,7 +129,7 @@ class NodeCoder:
                     vec.append(nodeVec[ix])
                 nodeIdx += 1         
             else:  # self.nNodes[ix] > 1; discrete
-                    #   oneHot = nodeVec[nodeIdx : nodeIdx + self.nNodes[ix]]
+                    #   onehot = nodeVec[nodeIdx : nodeIdx + self.nNodes[ix]]
                 probs = nodeVec[nodeIdx : nodeIdx + self.nNodes[ix]]
                     #   print(f"in decode:\probs={probs}")
                     #   print(f"type(probs)={type(probs)}")
@@ -192,7 +197,8 @@ class Coder:
                 possibles = action_config["possibles"], 
                 scaleshift = action_config["scaleshift"], 
                 isDecodedScalar = action_config["isDecodedScalar"],
-                isStochastic = agent_config["isActionStochastic"] if "isActionStochastic" in agent_config else config["isActionStochastic"]) 
+                isStochastic = agent_config["isActionStochastic"] if "isActionStochastic" in agent_config else config["isActionStochastic"], 
+                isOnehot = agent_config["isActionOnehot"] if "isActionOnehot" in agent_config else config["isActionOnehot"]) 
 
     def experienceFrom(self, observFrEnv, actionToEnv, reward, next_observFrEnv, done, npDtype):
         observ = self.observCoder.encode(observFrEnv)

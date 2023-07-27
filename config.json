@@ -22,7 +22,7 @@
     "#  Critic_concatenateBlock_hiddenUnits" : "[128, 16] for Pendulum",
 
     "SavePath" : "./model",
-    "NumOfEpisodes_toTrain" : 300, 
+    "NumOfEpisodes_toTrain" : 500, 
     "# NumOfEpisodes_toTrain" : "10000 for cartpoleV1", 
     "#  SumReward_toStopTrain" : 200,
     "#  #   SumReward_toStopTrain" : "for cartpoleV1.",
@@ -51,7 +51,7 @@
     "EpsilonMin" : 0.01,
     "#  EpsilonMin" : "0.01 in general",
     "EpsilonLambda" : 0.0001,
-    "# SAC_entropy_isActionStochastic" : false,
+    "# SAC_multi_isActionStochastic" : false,
 
     "CartPole_v1" : { 
         "MemoryCapacity" : 10000,
@@ -173,6 +173,8 @@
     "#  Explorer" : "one of [epsilonDecay, replayMemoryFiller]",
     "TemperatureParameter_alpha" : 0.06,
     "isActionStochastic" : false,
+    "isActionOnehot" : true,
+    "#  isActionOnehot" : "for discrete action",
 
     "DQN" : {
         "Explorer" : "epsilonDecay"
@@ -180,20 +182,19 @@
     "DDPG" : {
     },
     "SAC" : {
-        "TemperatureParameter_alpha" : 0.06, 
         "isActionStochastic" : true
     },
     "SAC_discrete" : {
         "Explorer" : "epsilonDecay",
-        "TemperatureParameter_alpha" : 0.06, 
         "isActionStochastic" : true
     },
-    "SAC_entropy" : {
+    "SAC_multi" : {
         "Explorer" : "replayMemoryFiller",
-        "TemperatureParameter_alpha" : 0.05,
+        "TemperatureParameter_alpha_CartPole_v1" : 5,
+        "# TemperatureParameter_alpha" : "0.05 is best(avg_reward~-0.3 for lambdas=(1,1,0)) and better than 0.5 and 5 for DaisoSokcho_discrete, 5 is better than 0.5 and 0.05 for CartPole-v1, 0.05 is best and better than 0.5 and 5 for LunarLander-v2 and isActionStochastic=false is better than true in general",
         "isActionStochastic" : false,
-        "# TemperatureParameter_alpha" : "0.05 is best(avg_reward~-0.3 for lambdas=(1,1,0)) and better than 0.5 and 5 for DaisoSokcho_discrete either with isActionStochastic=true or false, 5 is better than 0.5 and 0.05 for CartPole-v1 either for isActionStochastic=true or false, 0.05 is best and better than 0.5 and 5 for LunarLander-v2 either for isActionStochastic=true or false and isActionStochastic=false is better than true in general",
-        "# isActionStochastic" : "isActionStochastic=false is better for CartPole-v1"
+        "# isActionStochastic" : "isActionStochastic=false is better for CartPole-v1",
+        "isActionOnehot" : false
     },
 
     "#  ending" : true

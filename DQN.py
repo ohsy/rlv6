@@ -36,7 +36,7 @@ from Agent import Agent
 
 class DQN(Agent):
     def __init__(self, envName, mode, config, logger, observDim, actionDim):
-        super().__init__(envName, mode, config, logger)
+        super().__init__(envName, mode, config, logger, observDim, actionDim)
         hiddenUnits = config["DQN_hiddenUnits"]                     # like [64, 'bn', 64], 'bn' for BatchNorm
 
         if mode == "train":
@@ -131,8 +131,9 @@ class DQN(Agent):
             action: one-hot vector of the maximum-Q-node in output layer; shape=(actionDim)
         """
         if self.explorer.isReadyToExplore():
-            actionToEnv = actionCoder.random_decoded()  # get a random actionToEnv
-            action = actionCoder.encode(actionToEnv)
+            # actionToEnv = actionCoder.random_decoded()  # get a random actionToEnv
+            # action = actionCoder.encode(actionToEnv)
+            action = actionCoder.random_encoded()
                 #   Q_max = 0                           # dummy
         else:
             observ = tf.convert_to_tensor(observ)
