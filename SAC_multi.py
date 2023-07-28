@@ -80,13 +80,13 @@ class SAC_multi(DDPG):
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
         return actor_loss
 
-    """
     @tf.function
     def update_critic(self, observ, action, reward, next_observ, done, importance_weights):
-         Args:
+        """ Args:
             observ, next_observ: shape=(batchSz,observDim) 
             action: shape=(batchSz,actionDim)
             done, reward: shape=(batchSz,1)
+        """
       
         with tf.GradientTape(persistent=True) as tape:
             next_action, next_entropy = self.get_action_asProb_entropy(next_observ) # (batchSz,actionDim), (batchSz,1)
@@ -129,4 +129,3 @@ class SAC_multi(DDPG):
         self.critic2_optimizer.apply_gradients(zip(critic2_grads, self.critic2.trainable_variables))
             #   td_error = tf.minimum(td_error1, td_error2)                     # for monitoring; (batchSz,1)
         return critic1_loss, critic2_loss, td_error1
-    """
