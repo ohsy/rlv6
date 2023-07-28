@@ -94,10 +94,10 @@ class Game:
 
 def getLogger(filepath="./log.log"):
     logger = logging.getLogger("game")
-    logger.setLevel(logging.DEBUG) #   INFO, DEBUG
+    logger.setLevel(logging.INFO) #   INFO, DEBUG
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     fileHandler = logging.FileHandler(filename=filepath, mode="w")
-    fileHandler.setLevel(logging.DEBUG) # INFO, DEBUG
+    fileHandler.setLevel(logging.INFO) # INFO, DEBUG
     fileHandler.setFormatter(formatter)
     logger.addHandler(fileHandler)
     return logger

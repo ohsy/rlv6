@@ -143,7 +143,7 @@ class ActorCritic(Agent):
         """
         if self.explorer.isReadyToExplore():
             action = actionCoder.random_encoded()
-            self.logger.debug(f"random action={action}")
+                #   self.logger.debug(f"random action={action}")
         else:
             observ = tf.convert_to_tensor(observ)
             observ = tf.expand_dims(observ, axis=0)     # (1,observDim) to input to net

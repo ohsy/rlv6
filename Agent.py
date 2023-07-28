@@ -75,7 +75,7 @@ class Agent:
         agent_config = config[self.__class__.__name__] 
         explorer = agent_config["Explorer"] if "Explorer" in agent_config else config["Explorer"]
         self.alpha = agent_config["TemperatureParameter_alpha"] if "TemperatureParameter_alpha" in agent_config else config["TemperatureParameter_alpha"]
-        self.alpha = config[f"TemperatureParameter_alpha_{envName}"] if "TemperatureParameter_alpha_{envName}" in agent_config else self.alpha
+        self.alpha = agent_config[f"TemperatureParameter_alpha_{envName}"] if f"TemperatureParameter_alpha_{envName}" in agent_config else self.alpha
         self.logger.info(f"alpha={self.alpha}")
         self.isActionStochastic = agent_config["isActionStochastic"]  if "isActionStochastic" in agent_config else config["isActionStochastic"]  # vs. deterministic with max prob.
         self.alpha = tf.Variable(self.alpha, dtype=self.tfDtype)  

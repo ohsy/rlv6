@@ -53,7 +53,7 @@ class SAC(DDPG):
 
         return action, logProb
 
-    # @tf.function
+    @tf.function
     def update_actor(self, observ):
         """ Args: observ: shape=(batchSz,observDim) """
         with tf.GradientTape() as tape:
@@ -68,7 +68,7 @@ class SAC(DDPG):
         self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
         return actor_loss
 
-    # @tf.function
+    @tf.function
     def update_critic(self, observ, action, reward, next_observ, done, importance_weights):
         """ Args:
             observ, next_observ: shape=(batchSz,observDim) 
