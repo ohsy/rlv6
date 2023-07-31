@@ -112,11 +112,14 @@ if __name__ == "__main__":
         config = json.load(f)
 
     if config['isGpuUsed']:
-        physical_devices = tf.config.list_physical_devices('GPU')
+        gpus = tf.config.list_physical_devices('GPU')
         try:
-            tf.config.experimental.set_memory_growth(physical_devices[0], True)
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
         except:
-            sys.exit(f"tf.config.experimental.set_memory_growth() is not working for {physical_devices[0]=}")
+            sys.exit(f"tf.config.experimental.set_memory_growth() is not working for {gpus}")
+    else:
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
     parser = argparse.ArgumentParser(description="argpars parser used")
     parser.add_argument('-e', '--environment', type=str, required=True, choices=[i.value for i in EnvName])
