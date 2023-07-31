@@ -105,8 +105,15 @@ def getLogger(filepath="./log.log"):
 
 if __name__ == "__main__":
     np.set_printoptions(precision=6, threshold=sys.maxsize, linewidth=160, suppress=True)
-    if (not tf.test.is_built_with_cuda()) or len(tf.config.list_physical_devices('GPU')) == 0:
-        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    #   if (not tf.test.is_built_with_cuda()) or len(tf.config.list_physical_devices('GPU')) == 0:
+    #       os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+    if config['useGPU']:
+        physical_devices = tf.config.list_physical_devices('GPU')
+        try:
+            tf.config.experimental.set_memory_growth(physical_devices[0], True)
+        except:
+            sys.exit(f"tf.config.experimental.set_memory_growth() is not working for {physical_devices[0]=}")
 
     with open(os.getcwd()+'/config.json') as f:
         config = json.load(f)
