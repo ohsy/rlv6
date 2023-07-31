@@ -6,7 +6,7 @@
     "LogPath" : "./log",
     "dtype" : "float32",
     "intdtype" : "int32",
-    "usesGPU" : false:,
+    "isGpuUsed" : false:,
 
     "XXNetUnits_comment" : "units of hidden layers like [64,'bn',64]. 'bn' from BatchNormInUnitsList", 
     "BatchNorm_inUnitsList" : "bn",
