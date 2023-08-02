@@ -194,7 +194,7 @@
         "#  Explorer" : "epsilonDecay is better than replayMemoryFiller with capacity=100000",
         "TemperatureParameter_alpha" : 0.03,
         "TemperatureParameter_alpha_CartPole_v1" : 5,
-        "# TemperatureParameter_alpha" : "0.05 is best(avg_reward~-0.3 for lambdas=(1,1,0)) and better than 0.5 and 5 for DaisoSokcho_discrete, 5 is better than 0.5 and 0.05 for CartPole-v1, 0.05 is best and better than 0.5 and 5 for LunarLander-v2 and isActionStochastic=false is better than true in general",
+        "# TemperatureParameter_alpha" : "0.05 is best(avg_reward~-0.3 for lambdas=(1,1,0)) and better than 0.5 and 5 for DaisoSokcho_discrete, 5 is better than 0.5 and 0.05 for CartPole-v1, [0.0, 0.05] is good for LunarLander-v2 and isActionStochastic=false is better than true in general",
         "isActionStochastic" : false,
         "# isActionStochastic" : "isActionStochastic=false is better for CartPole-v1",
         "isActionOnehot" : false,
