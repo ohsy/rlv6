@@ -14,17 +14,18 @@ class Analyzer:
     status_preTrain = "preTr"       # preparing train
     targetToMonitor: TargetToMonitor 
 
-    def __init__(self, envName, config, logger, summaryWriter, sumReward_recent_len=3):
+    def __init__(self, envName, config, logger, summaryWriter, recent_len=10):
         self.envName = envName
         self.logger = logger
         self.summaryWriter = summaryWriter
+        self.recent_len = recent_len
         self.status = self.status_preTrain  
         self.preStatus = None
         self.rewards = []
         self.sumReward = 0
-        self.sumReward_recent_len = sumReward_recent_len
-        self.sumReward_recent = deque(maxlen=self.sumReward_recent_len)    
+        self.sumReward_recent = deque(maxlen=self.recent_len)    
         self.avgReward = 0
+        self.avgReward_recent = deque(maxlen=self.recent_len)    
         self.losss0 = []
         self.losss1 = []
         self.stepCnt = 0
@@ -44,8 +45,7 @@ class Analyzer:
         return time.time() - self.timeBeforeMainLoop
 
     def afterMainLoop(self):
-        #   self.logger.info(f"time for main loop = {self.timeForMainLoop():.3f}sec")
-        pass
+        self.logger.info(f"time for main loop = {self.timeForMainLoop():.3f}sec")
 
     def beforeEpisode(self):
         self.rewards = []
@@ -85,6 +85,7 @@ class Analyzer:
         self.sumReward_recent.append(self.sumReward)
         self.sumReward_movingAvg = mean(self.sumReward_recent)
         self.avgReward = self.sumReward / len(self.rewards)  # NOTE: sumReward != return due to gamma 
+        self.avgReward_recent.append(self.avgReward)
         msg = f"({self.status}) episode {episodeCnt}: {tm:.3f}sec" 
         msg += f", avg_loss0={avg_loss0:.3f}"  # critic if actor-critic
         msg += f", avg_loss1={avg_loss1:.3f}"  # actor if actor-critic
@@ -93,7 +94,7 @@ class Analyzer:
             with self.summaryWriter.as_default():
                 tf.summary.scalar("sumReward", self.sumReward, step=episodeCnt)
         elif self.targetToMonitor == TargetToMonitor.avgReward:
-            msg += f", avgReward={self.avgReward:.3f}"
+            msg += f", avgReward={self.avgReward:.3f}, avgReward_movingAvg={self.avgReward_movingAvg:.3f}"
             with self.summaryWriter.as_default():
                 tf.summary.scalar("avgReward", self.avgReward, step=episodeCnt)
         msg += f", epsilon={agent.explorer.epsilon:.3f}" if hasattr(agent.explorer,"epsilon") else ""
@@ -106,7 +107,7 @@ class Analyzer:
         if self.targetToMonitor == TargetToMonitor.sumReward:
             return self.sumReward_movingAvg > self.sumReward_toStopTrain
         elif self.targetToMonitor == TargetToMonitor.avgReward:
-            return self.avgReward > self.avgReward_toStopTrain
+            return self.avgReward_movingAvg > self.avgReward_toStopTrain
         else:
             return False
 

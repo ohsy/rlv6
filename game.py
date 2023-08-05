@@ -81,7 +81,7 @@ class Game:
 
             analyzer.afterEpisode(episodeCnt, agent)
             # Save model
-            if mode == Mode.train: 
+            if mode in [Mode.train, Mode.continued_train]: 
                 if analyzer.isTrainedEnough():
                     agent.save()
                     analyzer.afterSave("networks saved and training stopped...")
