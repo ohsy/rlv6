@@ -14,18 +14,18 @@ class Analyzer:
     status_preTrain = "preTr"       # preparing train
     targetToMonitor: TargetToMonitor 
 
-    def __init__(self, envName, config, logger, summaryWriter, recent_len=10):
+    def __init__(self, envName, config, logger, summaryWriter):
         self.envName = envName
         self.logger = logger
         self.summaryWriter = summaryWriter
-        self.recent_len = recent_len
+        self.movingAvgWindowSz = config["MovingAverageWindowSize"]
         self.status = self.status_preTrain  
         self.preStatus = None
         self.rewards = []
         self.sumReward = 0
-        self.sumReward_recent = deque(maxlen=self.recent_len)    
+        self.sumReward_recent = deque(maxlen=self.movingAvgWindowSz)    
         self.avgReward = 0
-        self.avgReward_recent = deque(maxlen=self.recent_len)    
+        self.avgReward_recent = deque(maxlen=self.movingAvgWindowSz)    
         self.losss0 = []
         self.losss1 = []
         self.stepCnt = 0
