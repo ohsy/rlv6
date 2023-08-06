@@ -72,11 +72,11 @@ class Analyzer:
         self.rewards.append(reward)
         if self.envName in ["DaisoSokcho", "DaisoSokcho_discrete"]:
             with self.summaryWriter.as_default():
-                tf.summary.scalar("n_AC_1F", info.action[0], step=self.trainCnt)
-                tf.summary.scalar("n_AC_2F", info.action[1], step=self.trainCnt)
-                tf.summary.scalar("n_AC_3F", info.action[2], step=self.trainCnt)
-                tf.summary.scalar("n_AC_4F", info.action[3], step=self.trainCnt)
-                tf.summary.scalar("n_AC_5F", info.action[4], step=self.trainCnt)
+                tf.summary.scalar("n_AC_1F", info["action"][0], step=self.trainCnt)
+                tf.summary.scalar("n_AC_2F", info["action"][1], step=self.trainCnt)
+                tf.summary.scalar("n_AC_3F", info["action"][2], step=self.trainCnt)
+                tf.summary.scalar("n_AC_4F", info["action"][3], step=self.trainCnt)
+                tf.summary.scalar("n_AC_5F", info["action"][4], step=self.trainCnt)
         self.stepCnt += 1
 
     def afterEpisode(self, episodeCnt, agent):
