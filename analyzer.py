@@ -70,7 +70,7 @@ class Analyzer:
 
     def afterTimestep(self, reward, info):
         self.rewards.append(reward)
-        if envName == "DaisoSokcho_discrete":
+        if envName in ["DaisoSokcho", "DaisoSokcho_discrete"]:
             with self.summaryWriter.as_default():
                 tf.summary.scalar("n_AC_1F", info.action[0], step=self.trainCnt)
                 tf.summary.scalar("n_AC_2F", info.action[1], step=self.trainCnt)
