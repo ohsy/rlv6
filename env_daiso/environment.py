@@ -7,6 +7,7 @@ Environment for Daiso Project
 import os
 import json
 import numpy as np
+import math
 
 from env_daiso.simulators import HCSimulator
 from env_daiso.estimator_DIS import Estimator
@@ -165,6 +166,7 @@ class DaisoSokcho:
         self.state = next_state
 
         control = self.ctrlObj.control_fromAction(action)
+        self.previous_action = action
 
         info = {
             'next_data': next_past_data,
@@ -204,7 +206,7 @@ class DaisoSokcho:
 
         # Consecutive constraint term
         # action and self.previous_action are np.array
-        consecutive_term = np.sum((action - self.previous_action)**2)
+        consecutive_term = math.sqrt(((ac - pa)**2).mean())  # np.sum((action - self.previous_action)**2)
             
         # Reward
         lambda_cost = self.config['lambda_cost']
