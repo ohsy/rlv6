@@ -206,7 +206,7 @@ class DaisoSokcho:
 
         # Consecutive constraint term
         # action and self.previous_action are np.array
-        consecutive_term = math.sqrt(((ac - pa)**2).mean())  # np.sum((action - self.previous_action)**2)
+        consecutive_term = math.sqrt(((action - self.previous_action)**2).mean())  # np.sum((action - self.previous_action)**2)
             
         # Reward
         lambda_cost = self.config['lambda_cost']
