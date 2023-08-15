@@ -30,6 +30,7 @@ class EnvName(Enum):   # NOTE: gym env name used '-' instead of '_'
     Pendulum_v1 = 'Pendulum-v1'  # reward in [-16.x, 0]
     CartPole_v1 = 'CartPole-v1'
     LunarLander_v2 = 'LunarLander-v2'  # reward in [-a, +b]
+    Asterix_v5 = 'ALE/Asterix-v5'  # Atari
     DaisoSokcho = 'DaisoSokcho'
     DaisoSokcho_discrete = 'DaisoSokcho_discrete'
 class AgentName(Enum):
@@ -138,10 +139,14 @@ if __name__ == "__main__":
     summaryPath = f"{logdirpath}/{dt}_summary"  # directory 
     summaryWriter = tf.summary.create_file_writer(summaryPath)
 
-    if envName in [envName.DaisoSokcho, envName.DaisoSokcho_discrete]:
+    if envName in [envName.DaisoSokcho, envName.DaisoSokcho_discrete]:  # building
         coder = Coder_daiso(config, envName.name, agentName.name, logger)  
         analyzer = Analyzer_daiso(envName.name, config, logger, summaryWriter)
         env = DaisoSokcho(phase = mode.value)
+    elif envName in [envName.Asterix_v5]:  # Atari
+        coder = Coder(config, envName.name, agentName.name, logger)  
+        analyzer = Analyzer(envName.name, config, logger, summaryWriter)
+        env = gym.make(envName.value, render_mode="human", obs_type="ram")
     else:
         coder = Coder(config, envName.name, agentName.name, logger)  
         analyzer = Analyzer(envName.name, config, logger, summaryWriter)
