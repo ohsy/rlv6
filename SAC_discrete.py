@@ -48,10 +48,10 @@ class SAC_discrete(ActorCritic):
         net = Model(inputs=observ, outputs=actionProb, name="actor")
         return net
 
-    def get_actionProb_logActionProb(self, observ, withTarget=False):
-        prob = self.target_actor(observ) if withTarget else self.actor(observ)  # (batchSz,actionDim)
+    def get_actionProb_logActionProb(self, observ):
+        prob = self.actor(observ)                                           # (batchSz,actionDim)
         self.logger.debug(f"in get_actionProb_logActionProb:prob={prob}")
-        logProb = tf.math.log(prob + self.tiny)                              # (batchSz,actionDim)
+        logProb = tf.math.log(prob + self.tiny)                             # (batchSz,actionDim)
         return prob, logProb
 
     def build_critic(self, trainable=True):
@@ -88,8 +88,7 @@ class SAC_discrete(ActorCritic):
             done, reward: shape=(batchSz,1)
         """
         with tf.GradientTape(persistent=True) as tape:
-            next_actionProb, next_logProb = self.get_actionProb_logActionProb(
-                    next_observ, withTarget=self.isTargetActor) # each (batchSz,actionDim)
+            next_actionProb, next_logProb = self.get_actionProb_logActionProb(next_observ) # each (batchSz,actionDim)
             target_Q1 = self.target_critic1(next_observ)                                # (batchSz,actionDim)
             target_Q2 = self.target_critic2(next_observ)
             target_Q_min = tf.minimum(target_Q1, target_Q2)
