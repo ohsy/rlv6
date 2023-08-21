@@ -32,13 +32,13 @@ class SAC_discrete(ActorCritic):
         self.critic_hiddenUnits = config["Critic_hiddenUnits"]   # like [64, 'bn', 64], 'bn' for BatchNorm
         super().__init__(envName, mode, config, logger, observDim, actionDim)
 
-    def build_actor(self, observDim=self.observDim, hiddenUnits=self.actor_hiddenUnits, actionDim=self.actionDim, dtype=self.tfDtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=dtype, name="observ")
+    def build_actor(self, trainable=True):
+        observ = Input(shape=(self.observDim,), dtype=self.tfDtype, name="observ")
         h = observ
-        for ix, units in enumerate(hiddenUnits):
+        for ix, units in enumerate(self.actor_hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
-        #   actionProb = self.dense_or_batchNorm(actionDim, "softmax", trainable=trainable, name="actionProb")(h)
-        logit = self.dense_or_batchNorm(actionDim, "linear", trainable=trainable, name="logit")(h)
+        #   actionProb = self.dense_or_batchNorm(self.actionDim, "softmax", trainable=trainable, name="actionProb")(h)
+        logit = self.dense_or_batchNorm(self.actionDim, "linear", trainable=trainable, name="logit")(h)
         logit = tf.clip_by_value(logit, self.logit_min, self.logit_max)  # before exp() to prevent gradient explosion
         actionProb = Softmax()(logit)
             #   exps = tf.math.exp(logit)
@@ -54,12 +54,12 @@ class SAC_discrete(ActorCritic):
         logProb = tf.math.log(prob + self.tiny)                              # (batchSz,actionDim)
         return prob, logProb
 
-    def build_critic(self, observDim=self.observDim, hiddenUnits=self.critic_hiddenUnits, actionDim=self.actionDim, dtype=self.tfDtype, trainable=True):
-        observ = Input(shape=(observDim,), dtype=dtype, name="inputs")
+    def build_critic(self, trainable=True):
+        observ = Input(shape=(self.observDim,), dtype=self.tfDtype, name="inputs")
         h = observ
-        for ix, units in enumerate(hiddenUnits):
+        for ix, units in enumerate(self.critic_hiddenUnits):
             h = self.dense_or_batchNorm(units, "relu", trainable=trainable, name=f"hidden_{ix}")(h)
-        action = self.dense_or_batchNorm(actionDim, "linear", use_bias=False, trainable=trainable, name="Qs")(h)
+        action = self.dense_or_batchNorm(self.actionDim, "linear", use_bias=False, trainable=trainable, name="Qs")(h)
 
         net = Model(inputs=observ, outputs=action, name="critic")
         return net
