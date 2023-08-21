@@ -125,7 +125,7 @@ class SAC_discrete(ActorCritic):
             action: shape=(observDim)
         """
         if self.explorer.isReadyToExplore():
-            actionToEnv = actionCoder.random_encoded()
+            action = actionCoder.random_encoded()
         else:
             observ = tf.convert_to_tensor(observ)
             observ = tf.expand_dims(observ, axis=0)                     # (1,observDim) to input to net
