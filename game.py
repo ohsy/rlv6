@@ -112,7 +112,7 @@ if __name__ == "__main__":
     with open(os.getcwd()+'/config.json') as f:
         config = json.load(f)
 
-    if config['isGpuUsed']:
+    if config['isGPUUsed']:
         gpus = tf.config.list_physical_devices('GPU')
         try:
             for gpu in gpus:
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     elif envName in [envName.Asterix_v5]:  # Atari
         coder = Coder(config, envName.name, agentName.name, logger)  
         analyzer = Analyzer(envName.name, config, logger, summaryWriter)
-        env = gym.make(envName.value, render_mode="human", obs_type="ram")
+        env = gym.make(envName.value, render_mode=("human" if mode == Mode.test else None), obs_type="ram")
     else:
         coder = Coder(config, envName.name, agentName.name, logger)  
         analyzer = Analyzer(envName.name, config, logger, summaryWriter)

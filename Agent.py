@@ -121,13 +121,13 @@ class Agent:
         self.actor_lr = config["Actor_learningRate"]
         self.critic_lr = config["Critic_learningRate"]
 
-        self.savePath_dqn = f"{self.savePath}/dqn"
-        self.savePath_target_dqn = f"{self.savePath}/target_dqn"
-        self.savePath_actor = f"{self.savePath}/actor"
-        self.savePath_critic1 = f"{self.savePath}/critic1"
-        self.savePath_critic2 = f"{self.savePath}/critic2"
-        self.savePath_target_critic1 = f"{self.savePath}/target_critic1"
-        self.savePath_target_critic2 = f"{self.savePath}/target_critic2"
+        self.savePath_dqn = f"{self.savePath}/dqn.keras"
+        self.savePath_target_dqn = f"{self.savePath}/target_dqn.keras"
+        self.savePath_actor = f"{self.savePath}/actor.keras"
+        self.savePath_critic1 = f"{self.savePath}/critic1.keras"
+        self.savePath_critic2 = f"{self.savePath}/critic2.keras"
+        self.savePath_target_critic1 = f"{self.savePath}/target_critic1.keras"
+        self.savePath_target_critic2 = f"{self.savePath}/target_critic2.keras"
 
 
     def dense_or_batchNorm(self, units, activation, use_bias=True, trainable=True, name=None):

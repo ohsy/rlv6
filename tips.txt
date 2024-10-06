@@ -42,3 +42,14 @@ solution: cf. https://unix.stackexchange.com/questions/682793/why-background-pro
         or
         KillUserProcesses=no
 
+
+problem: how to connect to the localhost in the local browser to see tensorboard on the remote server 
+solution: 
+	- connect with -L option like, in .bash_profile:
+	alias   to30='ssh -Y -L 16006:127.0.0.1:6006 soh@172.30.1.30'
+	cf. https://stackoverflow.com/questions/37987839/how-can-i-run-tensorboard-on-a-remote-server
+	"What it does is that everything on the port 6006 of the server (in 127.0.0.1:6006) will be forwarded to my machine on the port 16006."
+	- tensorboard on the remote server as usual like: 
+	$ tensorboard --logdir=./log/CartPole-v1_DQN_train/1004_0709_summary
+	- connect to http://localhost:16006/ on the local browser	
+

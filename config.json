@@ -6,7 +6,7 @@
     "LogPath" : "./log",
     "dtype" : "float32",
     "intdtype" : "int32",
-    "isGpuUsed" : false,
+    "isGPUUsed" : true,
 
     "XXNetUnits_comment" : "units of hidden layers like [64,'bn',64]. 'bn' from BatchNormInUnitsList", 
     "BatchNorm_inUnitsList" : "bn",
@@ -30,10 +30,11 @@
     "#  AvgReward_toStopTrain" : -0.005,
     "#  #   AvgReward_toStopTrain" : "-0.001 for pendulumV1",
     "NumOfEpisodes_toTest" : 3,
-    "Period_toSaveModels" : 200,
+    "Period_toSaveModels" : 500,
     "#  Period_toSaveModels" : "100 for cartpoleV1, in number of episodes",
     "BatchSize" : 64, 
-    "LearningRate" : 0.00025,
+    "#  LearningRate" : 0.00025,
+    "LearningRate" : 0.01,
     "#  LearningRate" : "can be used for DQN",
     "Actor_learningRate" : 0.0003,
     "#  Actor_learningRate" : "0.0003 in general",
@@ -60,7 +61,8 @@
     "CartPole_v1" : { 
         "MemoryCapacity" : 10000,
         "TargetToMonitor" : "sumReward", 
-        "sumReward_toStopTrain" : 200, 
+        "sumReward_toStopTrain" : 2000, 
+        "# sumReward_toStopTrain" : "200~300 in general", 
         "avgReward_toStopTrain" : 0,
         "observ" : {
             "nNodes" : [1,1,1,1],
@@ -127,7 +129,7 @@
     },
 
     "Asterix_v5" : { 
-        "MemoryCapacity" : 10000,
+        "MemoryCapacity" : 100000,
         "TargetToMonitor" : "sumReward", 
         "sumReward_toStopTrain" : 2000,
         "#  sumReward_toStopTrain" : "",
