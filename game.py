@@ -82,7 +82,7 @@ class Game:
                 if done:
                     break
 
-            analyzer.afterEpisode(episodeCn, trainStepCntt, agent)
+            analyzer.afterEpisode(episodeCnt, trainStepCnt, agent)
             # Save model
             if mode in [Mode.train, Mode.continued_train]: 
                 if analyzer.isTrainedEnough():
