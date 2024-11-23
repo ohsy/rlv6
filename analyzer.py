@@ -72,7 +72,7 @@ class Analyzer:
         self.rewards.append(reward)
         self.stepCnt += 1
 
-    def afterEpisode(self, episodeCnt, agent):
+    def afterEpisode(self, episodeCnt, trainStepCnt, agent):
         self.preStatus = self.status
         self.status = self.status_train if agent.isReadyToTrain() or self.preStatus == self.status_train else self.status_preTrain
         tm = time.time() - self.timeBeforeEpisode
@@ -87,7 +87,7 @@ class Analyzer:
         self.avgReward = self.sumReward / len(self.rewards)  # NOTE: sumReward != return due to gamma 
         self.avgReward_recent.append(self.avgReward)
         self.avgReward_movingAvg = mean(self.avgReward_recent)
-        msg = f"({self.status}) episode {episodeCnt}: {tm:.3f}sec" 
+        msg = f"({self.status}) episode {episodeCnt}, trainStepCnt {trainStepCnt}: {tm:.3f}sec" 
         msg += f", avg_loss0={avg_loss0:.3f}"  # critic if actor-critic
         msg += f", avg_loss1={avg_loss1:.3f}"  # actor if actor-critic
         if self.targetToMonitor == TargetToMonitor.sumReward:

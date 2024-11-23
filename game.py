@@ -49,6 +49,7 @@ class Game:
 
     def run(self, nEpisodes, mode, env, agent, coder, analyzer):
         analyzer.beforeMainLoop()
+        trainStepCnt = 0
         for episodeCnt in range(1, nEpisodes+1):  # for episodeCnt in tqdm(range(1, nEpisodes+1)):
             analyzer.beforeEpisode()
             observFrEnv, info = env.reset()  # observFrEnv (observDim)
@@ -69,6 +70,7 @@ class Game:
                     batch, indices, importance_weights = agent.replayMemory.sample(agent.batchSz)
                     #   print(f"batch=\n{batch}")
                     loss, td_error = agent.train(batch, importance_weights)
+                    trainStepCnt += 1
 
                     if agent.isPER == True:
                         agent.replayMemory.update_priorities(indices, td_error)
@@ -80,7 +82,7 @@ class Game:
                 if done:
                     break
 
-            analyzer.afterEpisode(episodeCnt, agent)
+            analyzer.afterEpisode(episodeCn, trainStepCntt, agent)
             # Save model
             if mode in [Mode.train, Mode.continued_train]: 
                 if analyzer.isTrainedEnough():
@@ -124,7 +126,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="argpars parser used")
     parser.add_argument('-e', '--environment', type=str, required=True, choices=[i.value for i in EnvName])
-    parser.add_argument('-n', '--agent', type=str, required=True, choices=[i.value for i in AgentName])
+    parser.add_argument('-a', '--agent', type=str, required=True, choices=[i.value for i in AgentName])
     parser.add_argument('-m', '--mode', type=str, required=True, choices=[i.value for i in Mode], help=f"running mode")
     args = parser.parse_args()
     envName = EnvName(args.environment)  # EnvName[config["Environment"]]
