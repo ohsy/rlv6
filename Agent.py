@@ -50,6 +50,7 @@ import sys
 import json
 #   from tqdm import tqdm
 import time
+import pathlib
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
@@ -81,6 +82,7 @@ class Agent:
         self.alpha = tf.Variable(self.alpha, dtype=self.tfDtype)  
 
         self.savePath = f"{config['SavePath']}/{envName}/{self.__class__.__name__}"
+        pathlib.Path(self.savePath).mkdir(exist_ok=True, parents=True)  # without this, No such file error for save()
         self.isRewardNorm = config["RewardNormalization"]
         self.isPER = config["PER"]
 
