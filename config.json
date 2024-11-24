@@ -82,9 +82,11 @@
         }
     },
     "Pendulum_v1" : { 
-        "MemoryCapacity" : 10000,
-        "# MemoryCapacity" : "500: not converge even after 5k episodes for SAC",
-        "# MemoryCapacity" : "10000: converges in 1k episodes for SAC",
+        "MemoryCapacity" : 5000,
+        "# MemoryCapacity" : "500: not converge even after 7.5k episodes (~ 1.5M train steps) for SAC",
+        "# MemoryCapacity" : "2000: start to converge in 200~400 episodes for SAC, but fluctuates after that",
+        "# MemoryCapacity" : "5000: start to converge in 50 episodes (~ 1k train steps) for SAC",
+        "# MemoryCapacity" : "10000: converges in 50 episodes (~ 1k train steps) for SAC",
         "TargetToMonitor" : "avgReward", 
         "sumReward_toStopTrain" : 0,
         "avgReward_toStopTrain" : -0.005,
